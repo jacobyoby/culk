@@ -14,33 +14,82 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
       metadata.lens = tags.LensModel?.description || tags.LensInfo?.description
     }
     
-    // Focal Length - try multiple sources
+    // Focal Length - try multiple sources and handle ratios
     if (tags.FocalLength) {
-      const focalLengthValue = tags.FocalLength.value as number
-      if (Array.isArray(focalLengthValue)) {
-        metadata.focalLength = focalLengthValue[0] || focalLengthValue
-      } else if (focalLengthValue > 1000) {
-        metadata.focalLength = Math.round(focalLengthValue / 100)
+      let focalLengthValue = tags.FocalLength.value as any
+      console.log('Raw focal length data:', {
+        value: focalLengthValue, 
+        description: tags.FocalLength.description,
+        type: typeof focalLengthValue
+      })
+      
+      // Try description first as it might have the correct value
+      if (tags.FocalLength.description) {
+        const descMatch = tags.FocalLength.description.match(/([0-9.]+)/);
+        if (descMatch) {
+          const descValue = parseFloat(descMatch[1]);
+          if (!isNaN(descValue)) {
+            metadata.focalLength = Math.round(descValue);
+          }
+        }
       } else {
-        metadata.focalLength = Math.round(focalLengthValue)
+        // Handle rational numbers (array of [numerator, denominator])
+        if (Array.isArray(focalLengthValue) && focalLengthValue.length === 2) {
+          focalLengthValue = focalLengthValue[0] / focalLengthValue[1]
+        } else if (Array.isArray(focalLengthValue)) {
+          focalLengthValue = focalLengthValue[0]
+        }
+        
+        const focalLengthNum = parseFloat(focalLengthValue)
+        if (!isNaN(focalLengthNum)) {
+          if (focalLengthNum > 1000) {
+            metadata.focalLength = Math.round(focalLengthNum / 100)
+          } else {
+            metadata.focalLength = Math.round(focalLengthNum)
+          }
+        }
       }
     }
     
-    // Aperture - handle various formats
+    // Aperture - handle various formats and ratios
     if (tags.FNumber || tags.ApertureValue) {
-      let apertureValue = tags.FNumber?.value || tags.ApertureValue?.value
-      if (Array.isArray(apertureValue)) {
-        apertureValue = apertureValue[0]
-      }
+      const apertureTag = tags.FNumber || tags.ApertureValue
+      let apertureValue = apertureTag?.value
+      console.log('Raw aperture data:', {
+        value: apertureValue, 
+        description: apertureTag?.description,
+        type: typeof apertureValue
+      })
       
-      if (apertureValue > 1000) {
-        metadata.aperture = parseFloat((apertureValue / 1000).toFixed(1))
-      } else if (apertureValue > 100) {
-        metadata.aperture = parseFloat((apertureValue / 100).toFixed(1))
-      } else if (apertureValue > 10) {
-        metadata.aperture = parseFloat((apertureValue / 10).toFixed(1))
+      // Try description first as it might have the correct f-stop value
+      if (apertureTag?.description) {
+        const descMatch = apertureTag.description.match(/([0-9.]+)/)
+        if (descMatch) {
+          const descValue = parseFloat(descMatch[1])
+          if (!isNaN(descValue)) {
+            metadata.aperture = parseFloat(descValue.toFixed(1))
+          }
+        }
       } else {
-        metadata.aperture = parseFloat(apertureValue.toFixed(1))
+        // Handle rational numbers (array of [numerator, denominator])
+        if (Array.isArray(apertureValue) && apertureValue.length === 2) {
+          apertureValue = apertureValue[0] / apertureValue[1]
+        } else if (Array.isArray(apertureValue)) {
+          apertureValue = apertureValue[0]
+        }
+        
+        const apertureNum = parseFloat(apertureValue)
+        if (!isNaN(apertureNum)) {
+          if (apertureNum > 1000) {
+            metadata.aperture = parseFloat((apertureNum / 1000).toFixed(1))
+          } else if (apertureNum > 100) {
+            metadata.aperture = parseFloat((apertureNum / 100).toFixed(1))
+          } else if (apertureNum > 10) {
+            metadata.aperture = parseFloat((apertureNum / 10).toFixed(1))
+          } else {
+            metadata.aperture = parseFloat(apertureNum.toFixed(1))
+          }
+        }
       }
     }
     if (tags.ExposureTime) metadata.shutterSpeed = tags.ExposureTime.description
@@ -125,12 +174,14 @@ export function formatExposureTime(shutterSpeed: string): string {
 }
 
 export function formatAperture(aperture: number): string {
-  if (!aperture) return ''
-  return `f/${aperture}`
+  if (!aperture || isNaN(aperture)) return ''
+  // Ensure we use a dot as decimal separator, not comma
+  const apertureStr = aperture.toFixed(1).replace(',', '.')
+  return `f/${apertureStr}`
 }
 
 export function formatFocalLength(focalLength: number): string {
-  if (!focalLength) return ''
+  if (!focalLength || isNaN(focalLength)) return ''
   return `${Math.round(focalLength)}mm`
 }
 
