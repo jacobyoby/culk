@@ -5,7 +5,10 @@ import { motion } from 'framer-motion'
 import { Crop, Download, RotateCcw, Scissors, Sparkles } from 'lucide-react'
 import { ImageRec } from '@/lib/types'
 import { detectAutoCropRegion, applyCrop, CropRegion } from '@/lib/utils/crop'
-import { faceDetectionWorkerManager } from '@/lib/ml/face-detection-worker-manager'
+import { Button, LoadingButton } from '@/components/ui/button'
+import { createCanvasFromImage, canvasToBlob, downloadBlob, getImageData } from '@/lib/utils/canvas'
+import { getFacesForImage, generateFaceAwareCrop } from '@/lib/utils/face-detection'
+import { withImageProcessingErrorHandling, withFileErrorHandling } from '@/lib/utils/error-handling'
 
 interface CropToolProps {
   image: ImageRec
@@ -48,44 +51,37 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
   const loadImage = async () => {
     if (!image.previewDataUrl || !canvasRef.current) return
     
-    const img = new Image()
-    
-    img.onload = async () => {
+    const result = await withImageProcessingErrorHandling(async () => {
+      const { canvas: sourceCanvas, cleanup } = await createCanvasFromImage(image.previewDataUrl!)
+      
       try {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        
+        const canvas = canvasRef.current!
         const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          console.error('Could not get canvas context')
-          return
-        }
+        if (!ctx) throw new Error('Could not get canvas context')
         
-        canvas.width = img.width
-        canvas.height = img.height
-        ctx.drawImage(img, 0, 0)
+        canvas.width = sourceCanvas.width
+        canvas.height = sourceCanvas.height
+        ctx.drawImage(sourceCanvas, 0, 0)
         
         // Initialize crop to full image
         setCropRegion({
           x: 0,
           y: 0,
-          width: img.width,
-          height: img.height
+          width: sourceCanvas.width,
+          height: sourceCanvas.height
         })
         
         // Generate auto-crop suggestions
-        generateAutoCropSuggestions(ctx.getImageData(0, 0, img.width, img.height))
-      } catch (error) {
-        console.error('Failed to load image for cropping:', error)
+        const imageData = getImageData(sourceCanvas)
+        await generateAutoCropSuggestions(imageData)
+      } finally {
+        cleanup()
       }
-    }
+    }, 'Load image for cropping')
     
-    img.onerror = () => {
-      console.error('Failed to load image:', image.previewDataUrl)
+    if (!result) {
+      console.error('Failed to load image for cropping')
     }
-    
-    img.src = image.previewDataUrl
-    imageRef.current = img
   }
   
   const generateAutoCropSuggestions = async (imageData: ImageData) => {
@@ -105,30 +101,25 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
       }
     })
 
-    // Add face-aware crop suggestions if faces are detected
-    if (image.faces && image.faces.length > 0) {
-      try {
-        const faceAwareCrop = generateFaceAwareCrop(imageData, image.faces)
-        suggestions.push(faceAwareCrop)
-        console.log('Added face-aware crop suggestion:', faceAwareCrop)
-      } catch (error) {
-        console.warn('Failed to generate face-aware crop:', error)
-      }
-    } else {
-      // Try to detect faces for cropping if not already detected
-      try {
-        const faceResult = await faceDetectionWorkerManager.detectFaces(imageData, {
-          confidenceThreshold: 0.6
+    // Add face-aware crop suggestions
+    try {
+      const faces = await getFacesForImage(image, { confidenceThreshold: 0.6 })
+      
+      if (faces && faces.length > 0) {
+        const faceAwareCrop = generateFaceAwareCrop(
+          imageData.width,
+          imageData.height,
+          faces
+        )
+        suggestions.push({
+          region: faceAwareCrop,
+          confidence: faceAwareCrop.confidence,
+          method: faceAwareCrop.method
         })
-        
-        if (faceResult.faces.length > 0) {
-          const faceAwareCrop = generateFaceAwareCrop(imageData, faceResult.faces)
-          suggestions.push(faceAwareCrop)
-          console.log('Generated face-aware crop from new detection:', faceAwareCrop)
-        }
-      } catch (error) {
-        console.warn('Face detection failed for crop suggestions:', error)
+        console.log('Added face-aware crop suggestion:', faceAwareCrop)
       }
+    } catch (error) {
+      console.warn('Failed to generate face-aware crop suggestions:', error)
     }
     
     // Sort by confidence
@@ -246,58 +237,60 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
     if (!cropRegion) return
     
     setIsProcessing(true)
-    try {
-      let croppedBlob: Blob
-      
-      // Try to use FileHandle first (if we have recent user activation)
-      if (image.fileHandle) {
-        try {
+    
+    const result = await withFileErrorHandling(
+      async () => {
+        if (image.fileHandle) {
           const file = await image.fileHandle.getFile()
-          croppedBlob = await applyCrop(file, cropRegion)
-        } catch (fileError) {
-          console.warn('FileHandle access failed, using preview fallback:', fileError)
-          // Fallback to using the preview image
-          croppedBlob = await applyCropFromPreview(image.previewDataUrl!, cropRegion)
+          return await applyCrop(file, cropRegion)
         }
-      } else if (image.previewDataUrl) {
-        // Use preview if no file handle
-        croppedBlob = await applyCropFromPreview(image.previewDataUrl, cropRegion)
-      } else {
+        throw new Error('No file handle available')
+      },
+      image.fileName,
+      async () => {
+        if (image.previewDataUrl) {
+          return await applyCropFromPreview(image.previewDataUrl, cropRegion)
+        }
         throw new Error('No image source available for cropping')
       }
-      
-      // Create new preview URL from cropped image
-      const newPreviewUrl = URL.createObjectURL(croppedBlob)
-      
-      // Update image record with new dimensions and crop info
-      const updatedImage: Partial<ImageRec> = {
-        previewDataUrl: newPreviewUrl,
-        autoCropRegion: {
-          x: cropRegion.x,
-          y: cropRegion.y,
-          width: cropRegion.width,
-          height: cropRegion.height,
-          confidence: 1.0, // User-applied crop has max confidence
-          method: 'user-applied'
+    )
+    
+    if (result) {
+      try {
+        // Create new preview URL from cropped image
+        const newPreviewUrl = URL.createObjectURL(result)
+        
+        // Update image record with new dimensions and crop info
+        const updatedImage: Partial<ImageRec> = {
+          previewDataUrl: newPreviewUrl,
+          autoCropRegion: {
+            x: cropRegion.x,
+            y: cropRegion.y,
+            width: cropRegion.width,
+            height: cropRegion.height,
+            confidence: 1.0, // User-applied crop has max confidence
+            method: 'user-applied'
+          }
         }
+        
+        // Notify parent components
+        onCropApplied?.(result, newPreviewUrl)
+        onImageUpdate?.(updatedImage)
+        
+        console.log('Crop applied successfully:', {
+          originalSize: `${image.metadata.width}x${image.metadata.height}`,
+          cropRegion,
+          newPreview: newPreviewUrl
+        })
+      } catch (error) {
+        console.error('Failed to process cropped image:', error)
+        alert('Failed to process cropped image: ' + (error instanceof Error ? error.message : 'Unknown error'))
       }
-      
-      // Notify parent components
-      onCropApplied?.(croppedBlob, newPreviewUrl)
-      onImageUpdate?.(updatedImage)
-      
-      console.log('Crop applied successfully:', {
-        originalSize: `${image.metadata.width}x${image.metadata.height}`,
-        cropRegion,
-        newPreview: newPreviewUrl
-      })
-      
-    } catch (error) {
-      console.error('Failed to apply crop:', error)
-      alert('Failed to apply crop: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    } finally {
-      setIsProcessing(false)
+    } else {
+      alert('Failed to apply crop. Please try again.')
     }
+    
+    setIsProcessing(false)
   }
 
   const applyCropFromPreview = async (previewUrl: string, cropRegion: CropRegion): Promise<Blob> => {
@@ -363,39 +356,31 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
     if (!cropRegion) return
     
     setIsProcessing(true)
-    try {
-      let croppedBlob: Blob
-      
-      // Try to use FileHandle first (if we have recent user activation)
-      if (image.fileHandle) {
-        try {
+    
+    const result = await withFileErrorHandling(
+      async () => {
+        if (image.fileHandle) {
           const file = await image.fileHandle.getFile()
-          croppedBlob = await applyCrop(file, cropRegion)
-        } catch (fileError) {
-          console.warn('FileHandle access failed for download, using preview fallback:', fileError)
-          // Fallback to using the preview image
-          croppedBlob = await applyCropFromPreview(image.previewDataUrl!, cropRegion)
+          return await applyCrop(file, cropRegion)
         }
-      } else if (image.previewDataUrl) {
-        // Use preview if no file handle
-        croppedBlob = await applyCropFromPreview(image.previewDataUrl, cropRegion)
-      } else {
+        throw new Error('No file handle available')
+      },
+      image.fileName,
+      async () => {
+        if (image.previewDataUrl) {
+          return await applyCropFromPreview(image.previewDataUrl, cropRegion)
+        }
         throw new Error('No image source available for cropping')
       }
-      
-      // Create download link
-      const url = URL.createObjectURL(croppedBlob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `cropped_${image.fileName}`
-      link.click()
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Failed to download crop:', error)
-      alert('Failed to download crop: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    } finally {
-      setIsProcessing(false)
+    )
+    
+    if (result) {
+      downloadBlob(result, `cropped_${image.fileName}`)
+    } else {
+      alert('Failed to download crop. Please try again.')
     }
+    
+    setIsProcessing(false)
   }
   
   if (!isOpen) return null
@@ -413,12 +398,14 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
             <Crop className="w-5 h-5" />
             Crop Image
           </h2>
-          <button
+          <Button
             onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            variant="ghost"
+            size="icon"
+            className="hover:bg-muted"
           >
             ×
-          </button>
+          </Button>
         </div>
         
         <div className="grid lg:grid-cols-4 gap-6">
@@ -458,13 +445,14 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
                   <Sparkles className="w-4 h-4" />
                   Auto Crop Suggestions
                 </h3>
-                <button
+                <Button
                   onClick={() => autoCropSuggestions.length > 0 && applySuggestion(autoCropSuggestions[0])}
                   disabled={autoCropSuggestions.length === 0}
-                  className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                  size="sm"
+                  variant="default"
                 >
                   Apply Best
-                </button>
+                </Button>
               </div>
               <div className="space-y-2">
                 {autoCropSuggestions.map((suggestion, index) => (
@@ -501,31 +489,36 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
             )}
             
             <div className="flex flex-col gap-2">
-              <button
+              <Button
                 onClick={handleReset}
-                className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                variant="secondary"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
-              </button>
+              </Button>
               
-              <button
+              <LoadingButton
                 onClick={downloadCrop}
-                disabled={!cropRegion || isProcessing}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={!cropRegion}
+                loading={isProcessing}
+                loadingText="Processing..."
+                icon={Download}
+                variant="default"
+                className="bg-blue-600 hover:bg-blue-700"
               >
-                <Download className="w-4 h-4" />
                 Download Crop
-              </button>
+              </LoadingButton>
               
-              <button
+              <LoadingButton
                 onClick={handleCrop}
-                disabled={!cropRegion || isProcessing}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                disabled={!cropRegion}
+                loading={isProcessing}
+                loadingText="Processing..."
+                icon={Scissors}
+                variant="default"
               >
-                <Scissors className="w-4 h-4" />
-                {isProcessing ? 'Processing...' : 'Apply Crop'}
-              </button>
+                Apply Crop
+              </LoadingButton>
             </div>
           </div>
         </div>

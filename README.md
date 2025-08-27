@@ -4,28 +4,56 @@ Local-first PWA for culling RAW/JPEG files with AI-powered features.
 
 ## Features
 
-✅ **Completed Features:**
+✅ **Core Features:**
 - **Local File Import** - File System Access API for secure folder import
 - **PWA Support** - Installable app with offline capabilities  
 - **Advanced Image Viewer** - Zoom, pan, rotate with smooth animations and scroll control
 - **Smart Culling Interface** - Filmstrip, loupe, compare, and survey views
 - **Rating & Flagging** - 5-star rating system with thumbs up/down for pick/reject
-- **Image Adjustments** - Real-time brightness, contrast, saturation, highlights, shadows, and vibrance
-- **Auto-Grouping** - Perceptual hash + SSIM similarity detection
-- **Smart Crop Suggestions** - Edge detection, golden ratio, and face-aware cropping
-- **Face Detection** - BlazeFace ONNX models with eye state analysis and focus scoring
-- **Focus Detection** - Laplacian variance for blur/sharpness analysis  
 - **XMP Export** - Lightroom/Capture One compatible sidecar files
 - **Multiple Export Formats** - JSON, CSV, and XMP exports
 - **Docker Support** - Development and production containers with health checks
 - **Comprehensive Testing** - Unit, integration, and acceptance test suites
 
-✅ **Advanced Features:**
-- **Face-Aware Auto-Cropping** - Automatically suggests crops that include faces
-- **Eye State Detection** - Identifies closed eyes in portraits
-- **Real-time Image Filters** - CSS-based adjustments for professional editing feel
-- **Keyboard Shortcuts** - Full keyboard navigation for efficient culling
-- **Memory Management** - Efficient blob URL cleanup and resource management
+✅ **AI & Image Processing:**
+- **Auto-Enhancement** - Intelligent histogram analysis with one-click optimization (E key)
+- **Professional Presets** - Portrait, landscape, lowLight, highKey, and dramatic styles
+- **Image Adjustments** - Real-time brightness, contrast, saturation, highlights, shadows, and vibrance
+- **Auto-Grouping** - Perceptual hash + SSIM similarity detection
+- **Smart Crop Suggestions** - Edge detection, golden ratio, and face-aware cropping
+- **Face Detection** - BlazeFace ONNX models with eye state analysis and focus scoring
+- **Focus Detection** - Laplacian variance for blur/sharpness analysis
+
+✅ **Professional Architecture:**
+- **React Context Architecture** - Eliminates anti-patterns with proper state management
+- **LRU Caching** - Memory-efficient per-image adjustment persistence  
+- **Error Boundaries** - Comprehensive error handling for image processing operations
+- **Resource Management** - Automatic blob URL cleanup and memory leak prevention
+- **Accessibility** - 44px touch targets, ARIA labels, and keyboard navigation
+- **Performance Optimized** - Background processing and efficient rendering
+
+## 🎨 Auto-Enhancement Features
+
+The application includes a sophisticated auto-enhancement system that analyzes image histograms and metadata to provide intelligent, professional-quality adjustments:
+
+### Intelligent Analysis
+- **Histogram Analysis** - Calculates luminance distribution, shadow/highlight clipping
+- **Exposure Detection** - Identifies underexposed, overexposed, and well-balanced images  
+- **Dynamic Range Assessment** - Measures tonal range and midtone balance
+- **Metadata Integration** - Considers ISO, aperture, and other EXIF data
+
+### Professional Presets
+- **Portrait** - Optimized for skin tones and facial features
+- **Landscape** - Enhanced contrast and vibrance for scenic images
+- **Low Light** - Shadow lifting and noise-conscious enhancement
+- **High Key** - Bright, airy look with highlight recovery
+- **Dramatic** - High contrast with rich shadows and highlights
+
+### Smart Adjustments
+- **Conservative/Normal Modes** - User-selectable enhancement intensity
+- **Confidence Scoring** - Algorithm reports certainty in enhancement recommendations
+- **Memory Efficient** - LRU caching prevents memory leaks during long sessions
+- **Real-time Preview** - Instant visual feedback with hardware-accelerated rendering
 
 ## Quick Start
 
@@ -71,13 +99,20 @@ pnpm dev
      - `I` - Toggle metadata display
      - `C` - Open crop tool
      - `A` - Open adjustment panel
+     - `E` - Auto-enhance image with intelligent analysis
 
 3. **Auto-Group Similar Images**
    - Visit the Review page
    - Click "Auto-Group Similar Images"
    - Review and adjust grouped images
 
-4. **Export Results**
+4. **Auto-Enhance Images** 
+   - Press `E` for instant intelligent enhancement
+   - Choose from professional presets (portrait, landscape, etc.)
+   - Fine-tune with manual adjustment sliders
+   - Adjustments are cached per-image for memory efficiency
+
+5. **Export Results**
    - Choose export format (XMP, JSON, CSV)
    - Filter by rating or flag status
    - Download your culling results
@@ -99,10 +134,11 @@ pnpm dev
 ```
 ├── app/                 # Next.js app router pages
 ├── components/          # Reusable UI components
-│   ├── adjustment-panel.tsx  # Real-time image adjustments
+│   ├── adjustment-panel.tsx  # Real-time image adjustments with auto-enhance
 │   ├── crop-tool.tsx         # Smart cropping interface
 │   ├── image-viewer.tsx      # Advanced image viewer with controls
 │   ├── rating-controls.tsx   # Star ratings and thumbs up/down
+│   ├── error-boundary.tsx    # Error handling components
 │   └── face-*.tsx           # Face detection components
 ├── lib/
 │   ├── fs/             # File System Access API
@@ -111,7 +147,8 @@ pnpm dev
 │   ├── similarity/     # Image similarity algorithms (pHash, SSIM)
 │   ├── quality/        # Focus and blur detection
 │   ├── grouping/       # Auto-grouping logic
-│   ├── utils/          # Image adjustments, cropping, EXIF
+│   ├── utils/          # Image adjustments, cropping, EXIF, auto-enhancement
+│   ├── contexts/       # React Context providers for state management
 │   ├── xmp/            # XMP sidecar generation
 │   └── export/         # Export functionality
 ├── workers/            # Web Workers for heavy processing

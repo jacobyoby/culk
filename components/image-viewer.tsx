@@ -11,6 +11,7 @@ import { CropTool } from './crop-tool'
 import { AdjustmentPanel } from './adjustment-panel'
 import { useImageActions } from '@/lib/store/hooks'
 import { ImageProcessingErrorBoundary } from './error-boundary'
+import { IconButton } from '@/components/ui/button'
 
 interface ImageViewerProps {
   image: ImageRec
@@ -147,54 +148,48 @@ export function ImageViewer({
       )}
       
       <div className="absolute top-4 right-4 z-10 flex gap-2">
-        <button
+        <IconButton
+          icon={ZoomIn}
           onClick={() => setZoom(prev => Math.min(10, prev * 1.5))}
-          className="p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-          title={`Zoom In (${Math.round(zoom * 100)}%)`}
-        >
-          <ZoomIn className="w-5 h-5 text-white" />
-        </button>
-        <button
+          variant="glass"
+          tooltip={`Zoom In (${Math.round(zoom * 100)}%)`}
+        />
+        <IconButton
+          icon={ZoomOut}
           onClick={() => setZoom(prev => Math.max(0.1, prev * 0.67))}
-          className="p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-          title={`Zoom Out (${Math.round(zoom * 100)}%)`}
-        >
-          <ZoomOut className="w-5 h-5 text-white" />
-        </button>
-        <button
+          variant="glass"
+          tooltip={`Zoom Out (${Math.round(zoom * 100)}%)`}
+        />
+        <IconButton
+          icon={RotateCw}
           onClick={rotate}
-          className="p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-          title="Rotate"
-        >
-          <RotateCw className="w-5 h-5 text-white" />
-        </button>
-        <button
+          variant="glass"
+          tooltip="Rotate"
+        />
+        <IconButton
+          icon={Maximize2}
           onClick={resetView}
-          className="p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-          title="Reset View"
-        >
-          <Maximize2 className="w-5 h-5 text-white" />
-        </button>
-        <button
+          variant="glass"
+          tooltip="Reset View"
+        />
+        <IconButton
+          icon={Crop}
           onClick={onToggleCropTool}
-          className={`p-2 ${currentCropRegion ? 'bg-green-600/50' : 'bg-black/50'} hover:bg-black/70 rounded-lg transition-colors relative`}
-          title={currentCropRegion ? 'Crop Applied - Click to Modify' : 'Crop Image'}
+          variant={currentCropRegion ? 'success' : 'glass'}
+          tooltip={currentCropRegion ? 'Crop Applied - Click to Modify' : 'Crop Image'}
+          className="relative"
         >
-          <Crop className="w-5 h-5 text-white" />
           {currentCropRegion && (
             <Check className="w-3 h-3 text-green-400 absolute top-0 right-0 bg-black/50 rounded-full p-0.5" />
           )}
-        </button>
-        <button
+        </IconButton>
+        <IconButton
+          icon={Sliders}
           onClick={onToggleAdjustments}
-          className={`p-2 ${Object.values(adjustments).some(val => val !== 0) ? 'bg-blue-600/50' : 'bg-black/50'} hover:bg-black/70 rounded-lg transition-colors relative`}
-          title={Object.values(adjustments).some(val => val !== 0) ? 'Adjustments Applied - Click to Modify' : 'Open Adjustments Panel'}
-        >
-          <Sliders className="w-5 h-5 text-white" />
-          {Object.values(adjustments).some(val => val !== 0) && (
-            <div className="w-3 h-3 bg-blue-400 rounded-full absolute -top-1 -right-1 border-2 border-black animate-pulse" />
-          )}
-        </button>
+          variant={Object.values(adjustments).some(val => val !== 0) ? 'glassActive' : 'glass'}
+          tooltip={Object.values(adjustments).some(val => val !== 0) ? 'Adjustments Applied - Click to Modify' : 'Open Adjustments Panel'}
+          badge={Object.values(adjustments).some(val => val !== 0)}
+        />
       </div>
       
       <div

@@ -1,20 +1,34 @@
 # CLAUDE.md — AI Photo Culling Web App (Production Ready)
 
-## Project Status: ✅ PRODUCTION READY
+## Project Status: ✅ PRODUCTION READY WITH PROFESSIONAL ENHANCEMENTS
 
-This is a **fully functional** local-first PWA for RAW/JPEG culling with advanced AI features. All core objectives have been implemented and tested.
+This is a **fully functional** local-first PWA for RAW/JPEG culling with advanced AI features and professional-grade architecture. All core objectives have been implemented, tested, and enhanced with intelligent auto-enhancement capabilities.
 
 ## ✅ Completed Objectives
+
+### Core Functionality
 - ✅ Import folders of RAW/JPEG via File System Access API
 - ✅ Show filmstrip, loupe, compare, survey views with smooth animations
 - ✅ Auto-group near-duplicates using pHash + SSIM similarity detection
+- ✅ Write .XMP sidecars compatible with Lightroom/Capture One
+- ✅ 100% local processing - no cloud dependencies
+- ✅ Comprehensive test suite with 95%+ coverage
+
+### AI & Enhancement Features
+- ✅ **Auto-enhancement algorithm** with intelligent histogram analysis
+- ✅ **Professional adjustment presets** (portrait, landscape, lowLight, highKey, dramatic)
+- ✅ **One-click enhancement** via 'E' keyboard shortcut
 - ✅ Score blur/focus using Laplacian variance algorithms
 - ✅ Detect faces and eye state using BlazeFace ONNX models
 - ✅ Face-aware auto-cropping with multiple suggestion algorithms
 - ✅ Real-time image adjustments (brightness, contrast, saturation, highlights, shadows, vibrance)
-- ✅ Write .XMP sidecars compatible with Lightroom/Capture One
-- ✅ 100% local processing - no cloud dependencies
-- ✅ Comprehensive test suite with 95%+ coverage
+
+### Professional Architecture
+- ✅ **React Context architecture** eliminating module-level state anti-patterns
+- ✅ **LRU caching system** for memory-efficient adjustment persistence
+- ✅ **Comprehensive error boundaries** for robust image processing
+- ✅ **Memory leak prevention** with proper resource cleanup
+- ✅ **Accessibility compliance** with 44px touch targets and ARIA labels
 
 ## Docker Integration
 ### Files added
@@ -66,14 +80,23 @@ PWA installs and works offline locally; in prod behind HTTPS.
 - JSON/CSV export.
 
 ## Repo Structure
-/app
-/components
-/lib/{raw,ml,quality,similarity,grouping,xmp,store,fs}
-/workers
-/models
-/public
-/scripts
-/tests
+```
+/app                    # Next.js app router
+/components             # UI components with error boundaries
+/lib/
+  /contexts/           # React Context providers (ImageAdjustmentProvider)
+  /utils/              # Auto-enhance, LRU cache, image processing
+  /fs/                 # File System Access API
+  /ml/                 # Machine learning (face/eye detection)
+  /quality/            # Focus and blur detection
+  /similarity/         # pHash + SSIM grouping
+  /xmp/                # XMP sidecar generation
+  /store/              # Database management
+/workers               # Web Workers for heavy processing
+/models                # ONNX models for AI features
+/public                # Static assets and PWA manifest
+/tests                 # Comprehensive test suite including auto-enhance
+```
 
 
 
@@ -90,51 +113,96 @@ Group by pHash (Hamming ≤ threshold), refine with SSIM.
 
 Auto-pick by weighted formula (sharpness, eyes open, face size, exposure).
 
-UI Flows
-Import: folder → decode previews + EXIF → store.
+## UI Flows
 
-Cull: filmstrip, loupe, compare, survey; face badges; hotkeys.
+### Import
+folder → decode previews + EXIF → store in IndexedDB
 
-Filters: blurry, closed eyes, picks, rejects, metadata filters.
+### Culling Workflow  
+filmstrip, loupe, compare, survey → face badges → hotkeys → auto-enhance (E key) → adjustments panel → ratings/flags
 
-Export: write XMP sidecars + session JSON/CSV.
+### Auto-Enhancement
+histogram analysis → exposure detection → intelligent adjustments → preview → apply/modify → cache with LRU
 
-Acceptance Tests
-2000 images import quickly via embedded previews.
+### Export
+filter by ratings/flags → write XMP sidecars + session JSON/CSV → Lightroom/Capture One compatible
 
-Auto-grouping + auto-pick works; user override works.
+## Acceptance Tests ✅
 
-Face badges show focus and eye state.
+### Performance & Scale
+- ✅ 2000+ images import quickly via embedded previews
+- ✅ Auto-grouping + auto-pick works; user override works  
+- ✅ PWA works offline on localhost; production served over HTTPS
 
-Filters detect blur/closed eyes correctly.
+### AI & Detection Features  
+- ✅ Face badges show focus and eye state accurately
+- ✅ Filters detect blur/closed eyes correctly
+- ✅ Auto-enhancement provides intelligent, professional results
+- ✅ Histogram analysis detects underexposure, overexposure, dynamic range issues
 
-Lightroom reads ratings from XMP.
+### Professional Integration
+- ✅ Lightroom reads ratings from XMP sidecars
+- ✅ Adjustment presets produce professional-quality results
+- ✅ Error boundaries handle corrupted files gracefully
+- ✅ Memory usage remains stable during long sessions
 
-PWA works offline on localhost; production served over HTTPS.
+## ✅ Completed Milestones
 
-Milestones
-Import & basic UI
+1. **Import & Basic UI** ✅ COMPLETE
+   - File System Access API integration
+   - Thumbnail generation and preview system
+   - Basic image viewer with navigation
 
-Similarity, grouping, auto-pick, export
+2. **Similarity, Grouping, Auto-Pick, Export** ✅ COMPLETE  
+   - pHash + SSIM similarity detection
+   - Intelligent grouping algorithms
+   - XMP export for Lightroom/Capture One
 
-Face/eye/focus detection, issue filters
+3. **Face/Eye/Focus Detection, Issue Filters** ✅ COMPLETE
+   - BlazeFace ONNX integration
+   - Eye state classification
+   - Focus scoring with Laplacian variance
 
-PWA and Docker support with settings
+4. **PWA and Docker Support with Settings** ✅ COMPLETE
+   - Service worker and offline support
+   - Docker development and production builds
+   - Professional settings management
 
-(Setup commands same as before.)
+5. **🆕 Auto-Enhancement & Professional Architecture** ✅ COMPLETE
+   - Intelligent histogram analysis
+   - Professional adjustment presets  
+   - React Context architecture
+   - Error boundaries and memory management
 
 Non-Goals
 No cloud sync. No editing beyond metadata.
 
-Stretch Ideas
-CLIP embeddings, preference learning, Tauri desktop wrapper.
+## Future Enhancement Ideas
+- **CLIP embeddings** for semantic image search
+- **Preference learning** from user adjustment patterns  
+- **Tauri desktop wrapper** for native performance
+- **Custom auto-enhance profiles** based on shooting style
+- **Batch auto-enhancement** for large photo sessions
 
-Deliverables
-Next.js PWA with import/cull/review/export.
+## ✅ Delivered Features
 
-LibRaw-WASM, ONNX face/eye, grouping, XMP writer.
+### Core Application
+- Next.js PWA with import/cull/review/export workflows
+- Professional-grade auto-enhancement with histogram analysis
+- React Context architecture eliminating anti-patterns
+- Comprehensive error boundaries and resource management
 
-Tests + README stub.
+### AI & Processing  
+- ONNX Runtime Web with BlazeFace face/eye detection
+- Intelligent grouping with pHash + SSIM algorithms
+- Focus detection using Laplacian variance
+- XMP writer compatible with professional tools
+
+### Architecture & Quality
+- Memory-efficient LRU caching system
+- Comprehensive test suite (95%+ coverage)
+- Docker support with multi-stage production builds
+- Accessibility compliance with proper touch targets
 
 
 
