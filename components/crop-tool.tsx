@@ -34,34 +34,57 @@ export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate 
     if (isOpen && image.previewDataUrl) {
       loadImage()
     }
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      if (imageRef.current) {
+        imageRef.current.onload = null
+        imageRef.current.onerror = null
+        imageRef.current = null
+      }
+    }
   }, [isOpen, image.previewDataUrl])
   
   const loadImage = async () => {
     if (!image.previewDataUrl || !canvasRef.current) return
     
     const img = new Image()
+    
     img.onload = async () => {
-      const canvas = canvasRef.current!
-      const ctx = canvas.getContext('2d')!
-      
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.drawImage(img, 0, 0)
-      
-      // Initialize crop to full image
-      setCropRegion({
-        x: 0,
-        y: 0,
-        width: img.width,
-        height: img.height
-      })
-      
-      // Generate auto-crop suggestions
-      generateAutoCropSuggestions(ctx.getImageData(0, 0, img.width, img.height))
+      try {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          console.error('Could not get canvas context')
+          return
+        }
+        
+        canvas.width = img.width
+        canvas.height = img.height
+        ctx.drawImage(img, 0, 0)
+        
+        // Initialize crop to full image
+        setCropRegion({
+          x: 0,
+          y: 0,
+          width: img.width,
+          height: img.height
+        })
+        
+        // Generate auto-crop suggestions
+        generateAutoCropSuggestions(ctx.getImageData(0, 0, img.width, img.height))
+      } catch (error) {
+        console.error('Failed to load image for cropping:', error)
+      }
+    }
+    
+    img.onerror = () => {
+      console.error('Failed to load image:', image.previewDataUrl)
     }
     
     img.src = image.previewDataUrl
-    // Update ref (create new ref object to avoid readonly error)
     imageRef.current = img
   }
   

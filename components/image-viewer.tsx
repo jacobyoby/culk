@@ -6,9 +6,11 @@ import { ZoomIn, ZoomOut, RotateCw, Maximize2, Crop, Check, Sliders } from 'luci
 import { ImageRec, ImageAdjustments } from '@/lib/types'
 import { getImageOrientation } from '@/lib/utils/image'
 import { adjustmentsToCSSFilter, getDefaultAdjustments } from '@/lib/utils/adjustments'
+import { useImageAdjustments } from '@/lib/contexts/image-adjustments-context'
 import { CropTool } from './crop-tool'
 import { AdjustmentPanel } from './adjustment-panel'
 import { useImageActions } from '@/lib/store/hooks'
+import { ImageProcessingErrorBoundary } from './error-boundary'
 
 interface ImageViewerProps {
   image: ImageRec
@@ -20,6 +22,7 @@ interface ImageViewerProps {
   onToggleAdjustments?: () => void
   className?: string
 }
+
 
 export function ImageViewer({
   image,
@@ -36,7 +39,13 @@ export function ImageViewer({
   const [rotation, setRotation] = useState(0)
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState(image.previewDataUrl)
   const [currentCropRegion, setCurrentCropRegion] = useState(image.autoCropRegion)
-  const [adjustments, setAdjustments] = useState<ImageAdjustments>(getDefaultAdjustments())
+  
+  // Use context for adjustment management
+  const { getAdjustments, setAdjustments: setContextAdjustments, getActivePreset, setActivePreset } = useImageAdjustments()
+  
+  // Get stored adjustments for this image
+  const [adjustments, setAdjustments] = useState<ImageAdjustments>(() => getAdjustments(image.id))
+  
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
@@ -44,11 +53,19 @@ export function ImageViewer({
   const { updateCrop } = useImageActions()
   const orientation = getImageOrientation(image.metadata.orientation)
   
-  // Update preview URL when image prop changes
+  // Update preview URL and load adjustments when image prop changes
   useEffect(() => {
     setCurrentPreviewUrl(image.previewDataUrl)
     setCurrentCropRegion(image.autoCropRegion)
-  }, [image.previewDataUrl, image.autoCropRegion])
+    // Load stored adjustments for this image or use defaults
+    const storedAdjustments = getAdjustments(image.id)
+    setAdjustments(storedAdjustments)
+  }, [image.id, image.previewDataUrl, image.autoCropRegion, getAdjustments])
+  
+  // Save adjustments when they change
+  useEffect(() => {
+    setContextAdjustments(image.id, adjustments)
+  }, [image.id, adjustments, setContextAdjustments])
   
   // Clean up blob URLs on unmount
   useEffect(() => {
@@ -170,10 +187,13 @@ export function ImageViewer({
         </button>
         <button
           onClick={onToggleAdjustments}
-          className={`p-2 ${Object.values(adjustments).some(val => val !== 0) ? 'bg-blue-600/50' : 'bg-black/50'} hover:bg-black/70 rounded-lg transition-colors`}
-          title="Adjustments"
+          className={`p-2 ${Object.values(adjustments).some(val => val !== 0) ? 'bg-blue-600/50' : 'bg-black/50'} hover:bg-black/70 rounded-lg transition-colors relative`}
+          title={Object.values(adjustments).some(val => val !== 0) ? 'Adjustments Applied - Click to Modify' : 'Open Adjustments Panel'}
         >
           <Sliders className="w-5 h-5 text-white" />
+          {Object.values(adjustments).some(val => val !== 0) && (
+            <div className="w-3 h-3 bg-blue-400 rounded-full absolute -top-1 -right-1 border-2 border-black animate-pulse" />
+          )}
         </button>
       </div>
       
@@ -182,25 +202,33 @@ export function ImageViewer({
         onMouseLeave={() => handleMouseUp()}
         onMouseUp={handleMouseUp}
       >
-        <motion.div
-          className="cursor-move"
-          animate={{
-            scale: zoom,
-            x: position.x,
-            y: position.y,
-            rotate: rotation
+        <ImageProcessingErrorBoundary 
+          imageName={image.fileName}
+          onRetry={() => {
+            // Reset view and force reload
+            resetView()
+            setCurrentPreviewUrl(image.previewDataUrl)
           }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          style={{ transform: orientation.transform }}
-          onMouseEnter={() => setIsHoveringImage(true)}
-          onMouseLeave={() => {
-            setIsHoveringImage(false)
-            handleMouseUp()
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
         >
+          <motion.div
+            className="cursor-move"
+            animate={{
+              scale: zoom,
+              x: position.x,
+              y: position.y,
+              rotate: rotation
+            }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            style={{ transform: orientation.transform }}
+            onMouseEnter={() => setIsHoveringImage(true)}
+            onMouseLeave={() => {
+              setIsHoveringImage(false)
+              handleMouseUp()
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
           {currentPreviewUrl ? (
             <img
               src={currentPreviewUrl}
@@ -253,7 +281,8 @@ export function ImageViewer({
               </svg>
             )
           })()}
-        </motion.div>
+          </motion.div>
+        </ImageProcessingErrorBoundary>
       </div>
       
       {showMetadata && (
@@ -306,7 +335,12 @@ export function ImageViewer({
       <AdjustmentPanel
         adjustments={adjustments}
         onAdjustmentsChange={setAdjustments}
+        image={image}
         isOpen={showAdjustments}
+        activePreset={getActivePreset(image.id)}
+        onPresetChange={(preset) => {
+          setActivePreset(image.id, preset)
+        }}
         onToggle={() => {
           console.log('AdjustmentPanel onToggle called')
           onToggleAdjustments?.()
