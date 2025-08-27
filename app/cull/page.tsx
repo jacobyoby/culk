@@ -170,6 +170,18 @@ export default function CullPage() {
     setUIState(prev => ({ ...prev, showAdjustments: !prev.showAdjustments }))
   }, { preventDefault: true, enableOnFormTags: true })
   
+  // Auto enhance shortcut - always works regardless of panel state
+  useHotkeys('e', () => {
+    if (currentImage) {
+      // Always ensure adjustments panel is open for visual feedback
+      setUIState(prev => ({ ...prev, showAdjustments: true }))
+      
+      // Trigger auto enhance immediately - no need to wait
+      const event = new CustomEvent('autoEnhance', { detail: { imageId: currentImage.id } })
+      document.dispatchEvent(event)
+    }
+  }, { preventDefault: true, enableOnFormTags: true })
+  
   if (allImages.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -353,6 +365,7 @@ export default function CullPage() {
           <span>I Info</span>
           <span>C Crop</span>
           <span>A Adjust</span>
+          <span>E Auto Enhance</span>
         </div>
       </div>
     </div>
