@@ -313,9 +313,14 @@ export async function autoEnhanceFromCanvas(
   metadata?: ImageMetadata,
   conservative: boolean = true
 ): Promise<AutoEnhanceResult> {
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   if (!ctx) {
     throw new Error('Could not get canvas context')
+  }
+  
+  // Validate canvas dimensions
+  if (canvas.width === 0 || canvas.height === 0) {
+    throw new Error('Canvas has invalid dimensions')
   }
   
   // Sample a smaller area for performance if image is large
@@ -324,9 +329,17 @@ export async function autoEnhanceFromCanvas(
   const sampleWidth = Math.floor(canvas.width * scale)
   const sampleHeight = Math.floor(canvas.height * scale)
   
-  const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight)
+  // Ensure we have valid sample dimensions
+  if (sampleWidth === 0 || sampleHeight === 0) {
+    throw new Error('Sample dimensions are invalid')
+  }
   
-  return autoEnhanceImage(imageData, metadata, conservative)
+  try {
+    const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight)
+    return autoEnhanceImage(imageData, metadata, conservative)
+  } catch (error) {
+    throw new Error(`Failed to get image data for enhancement: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
 }
 
 export function isEnhancementWorthwhile(result: AutoEnhanceResult): boolean {

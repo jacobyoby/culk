@@ -6,7 +6,8 @@
       "Bash(curl:*)",
       "Bash(git add:*)",
       "WebSearch",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

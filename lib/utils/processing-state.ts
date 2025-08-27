@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 
 /**
  * Shared processing state management with timeout handling
@@ -116,14 +116,14 @@ export function useProcessingState(options: UseProcessingStateOptions = {}) {
     })
   }, [])
   
-  return {
+  return useMemo(() => ({
     ...state,
     startProcessing,
     setSuccess,
     setError,
     clearMessages,
     reset
-  }
+  }), [state, startProcessing, setSuccess, setError, clearMessages, reset])
 }
 
 /**

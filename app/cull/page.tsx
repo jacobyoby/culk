@@ -172,13 +172,22 @@ export default function CullPage() {
   
   // Auto enhance shortcut - always works regardless of panel state
   useHotkeys('e', () => {
+    console.log('E key pressed for auto enhance', { 
+      hasCurrentImage: !!currentImage, 
+      imageId: currentImage?.id,
+      fileName: currentImage?.fileName 
+    })
+    
     if (currentImage) {
       // Always ensure adjustments panel is open for visual feedback
       setUIState(prev => ({ ...prev, showAdjustments: true }))
       
       // Trigger auto enhance immediately - no need to wait
       const event = new CustomEvent('autoEnhance', { detail: { imageId: currentImage.id } })
+      console.log('Dispatching auto enhance event', event.detail)
       document.dispatchEvent(event)
+    } else {
+      console.warn('No current image selected for auto enhance')
     }
   }, { preventDefault: true, enableOnFormTags: true })
   

@@ -88,18 +88,21 @@ export function AdjustmentPanel({
     errorDuration: 5000
   })
   
+  // Destructure processing state methods to avoid dependency issues
+  const { clearMessages, startProcessing, setSuccess, setError, isProcessing, result, error } = processingState
+  
   // Use prop-based active preset or fall back to local state
   const activePreset = propActivePreset !== undefined ? propActivePreset : null
 
   // Define handleAutoEnhance callback first
   const handleAutoEnhance = useCallback(async () => {
     if (!image?.previewDataUrl) {
-      processingState.setError('No image preview available')
+      setError('No image preview available')
       return
     }
 
     onPresetChange?.(null) // Clear preset selection when auto-enhancing
-    processingState.startProcessing() // Start processing state
+    startProcessing() // Start processing state
     
     const result = await withImageProcessingErrorHandling(async () => {
       const { canvas, cleanup } = await createCanvasFromImage(image.previewDataUrl!, {
@@ -128,11 +131,11 @@ export function AdjustmentPanel({
     
     if (result) {
       const message = formatEnhancementMessage(result)
-      processingState.setSuccess(`${message.title}: ${message.message}`)
+      setSuccess(`${message.title}: ${message.message}`)
     } else {
-      processingState.setError('Auto enhance failed')
+      setError('Auto enhance failed')
     }
-  }, [image?.previewDataUrl, image?.metadata, onAdjustmentsChange, onPresetChange, processingState])
+  }, [image?.previewDataUrl, image?.metadata, onAdjustmentsChange, onPresetChange, startProcessing, setSuccess, setError])
 
   // Store handleAutoEnhance ref to avoid dependency issues
   const handleAutoEnhanceRef = useRef(handleAutoEnhance)
@@ -154,12 +157,12 @@ export function AdjustmentPanel({
 
   // Clear status messages when image changes
   useEffect(() => {
-    processingState.clearMessages()
-  }, [image?.id, processingState])
+    clearMessages()
+  }, [image?.id, clearMessages])
 
   const handleReset = () => {
     onAdjustmentsChange(resetAdjustments())
-    processingState.clearMessages()
+    clearMessages()
     onPresetChange?.(null)
   }
 
@@ -169,7 +172,7 @@ export function AdjustmentPanel({
     onPresetChange?.(presetName)
     
     const message = formatPresetMessage(presetName)
-    processingState.setSuccess(`${message.title}: ${message.message}`)
+    setSuccess(`${message.title}: ${message.message}`)
   }
 
   const updateAdjustment = (key: keyof ImageAdjustments, value: number) => {
@@ -232,7 +235,7 @@ export function AdjustmentPanel({
               console.log('Auto enhance button clicked')
               handleAutoEnhance()
             }}
-            loading={processingState.isProcessing}
+            loading={isProcessing}
             loadingText="Analyzing..."
             disabled={!image?.previewDataUrl}
             icon={Wand2}
@@ -260,13 +263,13 @@ export function AdjustmentPanel({
         </div>
 
         {/* Status Message */}
-        {(processingState.result || processingState.error) && (
+        {(result || error) && (
           <div className="mb-4">
             <StatusMessageComponent
               message={{
-                type: processingState.error ? 'error' : 'success',
-                message: processingState.result || processingState.error || '',
-                details: processingState.result ? 'Adjustments saved to this image' : undefined
+                type: error ? 'error' : 'success',
+                message: result || error || '',
+                details: result ? 'Adjustments saved to this image' : undefined
               }}
             />
           </div>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auto Enhance Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; border: 1px solid #ccc; padding: 15px; }
+        canvas { border: 1px solid #000; margin: 10px; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .results { background: #f8f9fa; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Auto Enhance Algorithm Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Image Canvas</h2>
+        <canvas id="testCanvas" width="200" height="200"></canvas>
+        <button onclick="createTestImage()">Create Test Image</button>
+        <button onclick="testAutoEnhance()">Test Auto Enhance</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Results</h2>
+        <div id="results" class="results">Click "Test Auto Enhance" to see results</div>
+    </div>
+
+    <script type="module">
+        // Simplified auto-enhance algorithm for testing
+        const EXPOSURE_THRESHOLDS = {
+            SHADOW_THRESHOLD: 16,
+            HIGHLIGHT_THRESHOLD: 235,
+            UNDEREXPOSED_MEAN: 85,
+            OVEREXPOSED_MEAN: 170,
+            SHADOW_CLIPPING_PERCENT: 15,
+            HIGHLIGHT_CLIPPING_PERCENT: 5,
+            MIN_PIXEL_PERCENT: 0.001,
+            IDEAL_MEAN_LUMINANCE: 128,
+            LOW_DYNAMIC_RANGE: 180,
+            HIGH_DYNAMIC_RANGE: 220,
+            GOOD_MIDTONE_BALANCE: 0.4,
+            MIDTONE_START: 64,
+            MIDTONE_END: 192,
+        };
+
+        function calculateHistogram(imageData) {
+            const { data, width, height } = imageData;
+            const histogram = {
+                red: new Array(256).fill(0),
+                green: new Array(256).fill(0),
+                blue: new Array(256).fill(0),
+                luminance: new Array(256).fill(0),
+                total: width * height
+            };
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                histogram.red[r]++;
+                histogram.green[g]++;
+                histogram.blue[b]++;
+                
+                const luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                histogram.luminance[luminance]++;
+            }
+
+            return histogram;
+        }
+
+        function analyzeExposure(histogram) {
+            const { luminance, total } = histogram;
+            
+            let shadowClipping = 0;
+            let highlightClipping = 0;
+            
+            for (let i = 0; i < EXPOSURE_THRESHOLDS.SHADOW_THRESHOLD; i++) {
+                shadowClipping += luminance[i];
+            }
+            
+            for (let i = EXPOSURE_THRESHOLDS.HIGHLIGHT_THRESHOLD; i < 256; i++) {
+                highlightClipping += luminance[i];
+            }
+            
+            const shadowPercent = (shadowClipping / total) * 100;
+            const highlightPercent = (highlightClipping / total) * 100;
+            
+            let weightedSum = 0;
+            for (let i = 0; i < 256; i++) {
+                weightedSum += i * luminance[i];
+            }
+            const meanLuminance = weightedSum / total;
+            
+            const exposureScore = (meanLuminance - EXPOSURE_THRESHOLDS.IDEAL_MEAN_LUMINANCE) / EXPOSURE_THRESHOLDS.IDEAL_MEAN_LUMINANCE;
+            
+            const isUnderexposed = meanLuminance < EXPOSURE_THRESHOLDS.UNDEREXPOSED_MEAN || 
+                                  shadowPercent > EXPOSURE_THRESHOLDS.SHADOW_CLIPPING_PERCENT;
+            const isOverexposed = meanLuminance > EXPOSURE_THRESHOLDS.OVEREXPOSED_MEAN || 
+                                 highlightPercent > EXPOSURE_THRESHOLDS.HIGHLIGHT_CLIPPING_PERCENT;
+            
+            // Dynamic range
+            let firstNonZero = -1;
+            let lastNonZero = -1;
+            
+            for (let i = 0; i < 256; i++) {
+                if (luminance[i] > total * EXPOSURE_THRESHOLDS.MIN_PIXEL_PERCENT) {
+                    if (firstNonZero === -1) firstNonZero = i;
+                    lastNonZero = i;
+                }
+            }
+            
+            const dynamicRange = lastNonZero - firstNonZero;
+            
+            // Midtone balance
+            let midtoneSum = 0;
+            for (let i = EXPOSURE_THRESHOLDS.MIDTONE_START; i < EXPOSURE_THRESHOLDS.MIDTONE_END; i++) {
+                midtoneSum += luminance[i];
+            }
+            const midtoneBalance = midtoneSum / total;
+            
+            return {
+                isUnderexposed,
+                isOverexposed,
+                exposureScore,
+                shadowClipping: shadowPercent,
+                highlightClipping: highlightPercent,
+                dynamicRange,
+                midtoneBalance,
+                meanLuminance
+            };
+        }
+
+        window.createTestImage = function() {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Create a test image with gradient (simulating underexposed image)
+            const imageData = ctx.createImageData(200, 200);
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const x = (i / 4) % 200;
+                const y = Math.floor((i / 4) / 200);
+                
+                // Create dark gradient (underexposed)
+                const brightness = Math.floor((x + y) / 8); // Dark gradient
+                
+                data[i] = brightness;     // Red
+                data[i + 1] = brightness; // Green  
+                data[i + 2] = brightness; // Blue
+                data[i + 3] = 255;        // Alpha
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            console.log('Test image created');
+        };
+
+        window.testAutoEnhance = function() {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, 200, 200);
+            
+            console.log('Testing auto enhance...');
+            
+            const histogram = calculateHistogram(imageData);
+            const analysis = analyzeExposure(histogram);
+            
+            // Calculate suggested adjustments
+            let adjustments = {
+                brightness: 0,
+                contrast: 0,
+                shadows: 0,
+                highlights: 0,
+                saturation: 0,
+                vibrance: 0
+            };
+            
+            let confidence = 0.5;
+            
+            // Shadow/Highlight recovery
+            if (analysis.shadowClipping > 10) {
+                adjustments.shadows = Math.min(40, analysis.shadowClipping * 2);
+                confidence += 0.2;
+            }
+            
+            if (analysis.highlightClipping > 3) {
+                adjustments.highlights = Math.max(-40, -analysis.highlightClipping * 8);
+                confidence += 0.2;
+            }
+            
+            // Brightness adjustment
+            if (analysis.isUnderexposed) {
+                adjustments.brightness = Math.min(25, Math.abs(analysis.exposureScore) * 30);
+                confidence += 0.15;
+            }
+            
+            // Contrast adjustment
+            if (analysis.dynamicRange < 180 && !analysis.isOverexposed) {
+                adjustments.contrast = Math.min(25, (180 - analysis.dynamicRange) / 8);
+                confidence += 0.1;
+            }
+            
+            // Saturation enhancement
+            if (analysis.midtoneBalance > 0.4 && !analysis.isOverexposed) {
+                adjustments.saturation = 12;
+                adjustments.vibrance = 15;
+                confidence += 0.1;
+            }
+            
+            confidence = Math.max(0.1, Math.min(1.0, confidence));
+            
+            const isWorthwhile = confidence > 0.3 && (
+                Math.abs(adjustments.brightness) > 3 ||
+                Math.abs(adjustments.contrast) > 5 ||
+                Math.abs(adjustments.shadows) > 8 ||
+                Math.abs(adjustments.highlights) > 8 ||
+                adjustments.saturation > 5 ||
+                adjustments.vibrance > 8
+            );
+            
+            const results = {
+                analysis,
+                adjustments,
+                confidence,
+                isWorthwhile
+            };
+            
+            document.getElementById('results').innerHTML = `
+                <h3>Analysis Results:</h3>
+                <p><strong>Mean Luminance:</strong> ${analysis.meanLuminance.toFixed(1)} (ideal: 128)</p>
+                <p><strong>Underexposed:</strong> ${analysis.isUnderexposed}</p>
+                <p><strong>Overexposed:</strong> ${analysis.isOverexposed}</p>
+                <p><strong>Shadow Clipping:</strong> ${analysis.shadowClipping.toFixed(1)}%</p>
+                <p><strong>Highlight Clipping:</strong> ${analysis.highlightClipping.toFixed(1)}%</p>
+                <p><strong>Dynamic Range:</strong> ${analysis.dynamicRange}</p>
+                <p><strong>Midtone Balance:</strong> ${analysis.midtoneBalance.toFixed(3)}</p>
+                
+                <h3>Suggested Adjustments:</h3>
+                <p><strong>Brightness:</strong> ${adjustments.brightness}</p>
+                <p><strong>Contrast:</strong> ${adjustments.contrast}</p>
+                <p><strong>Shadows:</strong> ${adjustments.shadows}</p>
+                <p><strong>Highlights:</strong> ${adjustments.highlights}</p>
+                <p><strong>Saturation:</strong> ${adjustments.saturation}</p>
+                <p><strong>Vibrance:</strong> ${adjustments.vibrance}</p>
+                
+                <h3>Enhancement Decision:</h3>
+                <p><strong>Confidence:</strong> ${(confidence * 100).toFixed(1)}%</p>
+                <p><strong>Enhancement Worthwhile:</strong> ${isWorthwhile}</p>
+                <p style="color: ${isWorthwhile ? 'green' : 'orange'}">
+                    ${isWorthwhile ? '✅ Enhancement would be applied' : '⚠️ Enhancement would be skipped'}
+                </p>
+            `;
+            
+            console.log('Auto enhance test completed:', results);
+        };
+        
+        // Auto-create test image on load
+        window.addEventListener('load', () => {
+            window.createTestImage();
+        });
+    </script>
+</body>
+</html>
