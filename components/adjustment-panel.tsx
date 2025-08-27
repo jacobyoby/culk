@@ -93,15 +93,7 @@ export function AdjustmentPanel({
 
   // Define handleAutoEnhance callback first
   const handleAutoEnhance = useCallback(async () => {
-    console.log('Auto enhance triggered', { 
-      hasImage: !!image, 
-      hasPreview: !!image?.previewDataUrl,
-      imageId: image?.id,
-      fileName: image?.fileName
-    })
-    
     if (!image?.previewDataUrl) {
-      console.error('Auto enhance failed: No image preview available')
       processingState.setError('No image preview available')
       return
     }
@@ -110,22 +102,12 @@ export function AdjustmentPanel({
     processingState.startProcessing() // Start processing state
     
     const result = await withImageProcessingErrorHandling(async () => {
-      console.log('Creating canvas from image...')
       const { canvas, cleanup } = await createCanvasFromImage(image.previewDataUrl!, {
         willReadFrequently: true
       })
       
-      console.log('Canvas created', { width: canvas.width, height: canvas.height })
-      
       try {
-        console.log('Running auto enhance algorithm...')
         const enhanceResult = await autoEnhanceFromCanvas(canvas, image.metadata, true)
-        
-        console.log('Enhancement result:', {
-          confidence: enhanceResult.confidence,
-          adjustments: enhanceResult.adjustments,
-          isWorthwhile: isEnhancementWorthwhile(enhanceResult)
-        })
         
         if (isEnhancementWorthwhile(enhanceResult)) {
           onAdjustmentsChange(enhanceResult.adjustments)
@@ -145,39 +127,30 @@ export function AdjustmentPanel({
     }, 'Auto enhance')
     
     if (result) {
-      console.log('Auto enhance completed successfully', result)
       const message = formatEnhancementMessage(result)
       processingState.setSuccess(`${message.title}: ${message.message}`)
     } else {
-      console.error('Auto enhance failed - no result returned')
       processingState.setError('Auto enhance failed')
     }
   }, [image?.previewDataUrl, image?.metadata, onAdjustmentsChange, onPresetChange, processingState])
 
+  // Store handleAutoEnhance ref to avoid dependency issues
+  const handleAutoEnhanceRef = useRef(handleAutoEnhance)
+  handleAutoEnhanceRef.current = handleAutoEnhance
+
   // Listen for auto enhance events from keyboard shortcuts
   useEffect(() => {
     const handleAutoEnhanceEvent = (event: CustomEvent) => {
-      console.log('Auto enhance event received', { 
-        eventImageId: event.detail.imageId, 
-        currentImageId: image?.id,
-        match: image && event.detail.imageId === image.id 
-      })
-      
-      if (image && event.detail.imageId === image.id) {
-        console.log('Auto enhance event matches current image, triggering...')
-        handleAutoEnhance()
-      } else {
-        console.log('Auto enhance event ignored - no match or no image')
+      if (image?.id && event.detail.imageId === image.id) {
+        handleAutoEnhanceRef.current()
       }
     }
 
-    console.log('Setting up auto enhance event listener for image:', image?.id)
     document.addEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
     return () => {
-      console.log('Cleaning up auto enhance event listener for image:', image?.id)
       document.removeEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
     }
-  }, [image, handleAutoEnhance])
+  }, [image?.id])
 
   // Clear status messages when image changes
   useEffect(() => {
