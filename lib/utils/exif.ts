@@ -6,6 +6,13 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
     const arrayBuffer = await file.arrayBuffer()
     const tags = ExifReader.load(arrayBuffer)
     
+    console.log('All EXIF tags:', Object.keys(tags))
+    console.log('Available aperture tags:', {
+      FNumber: tags.FNumber,
+      ApertureValue: tags.ApertureValue,
+      MaxApertureValue: tags.MaxApertureValue
+    })
+    
     const metadata: ImageMetadata = {}
     
     if (tags.Make) metadata.make = tags.Make.description
@@ -61,56 +68,68 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
       }
     }
     
-    // Aperture - handle various formats and ratios
-    if (tags.FNumber || tags.ApertureValue) {
-      const apertureTag = tags.FNumber || tags.ApertureValue
-      let apertureValue = apertureTag?.value
-      console.log('Raw aperture data:', {
-        value: apertureValue, 
-        description: apertureTag?.description,
-        type: typeof apertureValue
-      })
-      
-      let apertureResult = null
-      
-      // Try description first as it might have the correct f-stop value
-      if (apertureTag?.description) {
-        const descMatch = apertureTag.description.match(/([0-9.]+)/)
-        if (descMatch) {
-          const descValue = parseFloat(descMatch[1])
-          if (!isNaN(descValue)) {
-            apertureResult = parseFloat(descValue.toFixed(1))
+    // Aperture - try multiple tag sources
+    console.log('Checking for aperture tags...')
+    const apertureTags = ['FNumber', 'ApertureValue', 'MaxApertureValue']
+    let apertureResult = null
+    
+    for (const tagName of apertureTags) {
+      if (tags[tagName] && !apertureResult) {
+        const apertureTag = tags[tagName]
+        console.log(`Found ${tagName}:`, {
+          value: apertureTag.value,
+          description: apertureTag.description,
+          type: typeof apertureTag.value
+        })
+        
+        // Try description first
+        if (apertureTag.description) {
+          const descMatch = apertureTag.description.match(/([0-9.]+)/)
+          if (descMatch) {
+            const descValue = parseFloat(descMatch[1])
+            if (!isNaN(descValue) && descValue > 0) {
+              apertureResult = parseFloat(descValue.toFixed(1))
+              console.log(`Aperture from ${tagName} description:`, apertureResult)
+              break
+            }
           }
-        }
-      }
-      
-      // If description didn't work, try raw value
-      if (apertureResult === null && apertureValue !== undefined) {
-        // Handle rational numbers (array of [numerator, denominator])
-        if (Array.isArray(apertureValue) && apertureValue.length === 2) {
-          apertureValue = apertureValue[0] / apertureValue[1]
-        } else if (Array.isArray(apertureValue)) {
-          apertureValue = apertureValue[0]
         }
         
-        const apertureNum = parseFloat(apertureValue)
-        if (!isNaN(apertureNum)) {
-          if (apertureNum > 1000) {
-            apertureResult = parseFloat((apertureNum / 1000).toFixed(1))
-          } else if (apertureNum > 100) {
-            apertureResult = parseFloat((apertureNum / 100).toFixed(1))
-          } else if (apertureNum > 10) {
-            apertureResult = parseFloat((apertureNum / 10).toFixed(1))
-          } else {
-            apertureResult = parseFloat(apertureNum.toFixed(1))
+        // Try raw value
+        if (!apertureResult && apertureTag.value !== undefined) {
+          let apertureValue = apertureTag.value
+          
+          // Handle arrays/ratios
+          if (Array.isArray(apertureValue) && apertureValue.length === 2) {
+            apertureValue = apertureValue[0] / apertureValue[1]
+          } else if (Array.isArray(apertureValue)) {
+            apertureValue = apertureValue[0]
+          }
+          
+          const apertureNum = parseFloat(apertureValue)
+          if (!isNaN(apertureNum) && apertureNum > 0) {
+            // Try different scaling factors
+            if (apertureNum > 1000) {
+              apertureResult = parseFloat((apertureNum / 1000).toFixed(1))
+            } else if (apertureNum > 100) {
+              apertureResult = parseFloat((apertureNum / 100).toFixed(1))
+            } else if (apertureNum > 10) {
+              apertureResult = parseFloat((apertureNum / 10).toFixed(1))
+            } else {
+              apertureResult = parseFloat(apertureNum.toFixed(1))
+            }
+            console.log(`Aperture from ${tagName} raw value:`, apertureResult)
+            break
           }
         }
       }
-      
-      if (apertureResult !== null) {
-        metadata.aperture = apertureResult
-        console.log('Final aperture value:', apertureResult)
-      }
+    }
+    
+    if (apertureResult !== null && apertureResult > 0) {
+      metadata.aperture = apertureResult
+      console.log('FINAL APERTURE SET:', apertureResult)
+    } else {
+      console.log('NO APERTURE VALUE FOUND OR PARSED')
     }
     if (tags.ExposureTime) metadata.shutterSpeed = tags.ExposureTime.description
     if (tags.ISOSpeedRatings) metadata.iso = tags.ISOSpeedRatings.value as number
