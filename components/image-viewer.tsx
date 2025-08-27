@@ -6,6 +6,7 @@ import { ZoomIn, ZoomOut, RotateCw, Maximize2, Crop } from 'lucide-react'
 import { ImageRec } from '@/lib/types'
 import { getImageOrientation } from '@/lib/utils/image'
 import { CropTool } from './crop-tool'
+import { useImageActions } from '@/lib/store/hooks'
 
 interface ImageViewerProps {
   image: ImageRec
@@ -31,6 +32,7 @@ export function ImageViewer({
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
   
+  const { updateCrop } = useImageActions()
   const orientation = getImageOrientation(image.metadata.orientation)
   
   const handleWheel = (e: React.WheelEvent) => {
@@ -200,10 +202,19 @@ export function ImageViewer({
       <CropTool
         image={image}
         isOpen={showCropTool}
-        onClose={onToggleCropTool}
-        onCropApplied={(blob) => {
-          console.log('Crop applied:', blob.size, 'bytes')
+        onClose={() => onToggleCropTool?.()}
+        onCropApplied={(blob, newPreviewUrl) => {
+          console.log('Crop applied:', blob.size, 'bytes', 'New preview:', newPreviewUrl)
           onToggleCropTool?.()
+        }}
+        onImageUpdate={async (updatedImage) => {
+          console.log('Image updated with crop info:', updatedImage)
+          try {
+            await updateCrop(image.id, updatedImage)
+            console.log('Crop information saved to database')
+          } catch (error) {
+            console.error('Failed to save crop information:', error)
+          }
         }}
       />
     </div>

@@ -5,15 +5,17 @@ import { motion } from 'framer-motion'
 import { Crop, Download, RotateCcw, Scissors, Sparkles } from 'lucide-react'
 import { ImageRec } from '@/lib/types'
 import { detectAutoCropRegion, applyCrop, CropRegion } from '@/lib/utils/crop'
+import { faceDetectionWorkerManager } from '@/lib/ml/face-detection-worker-manager'
 
 interface CropToolProps {
   image: ImageRec
   isOpen: boolean
   onClose: () => void
-  onCropApplied?: (croppedBlob: Blob) => void
+  onCropApplied?: (croppedBlob: Blob, newPreviewUrl: string) => void
+  onImageUpdate?: (updatedImage: Partial<ImageRec>) => void
 }
 
-export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProps) {
+export function CropTool({ image, isOpen, onClose, onCropApplied, onImageUpdate }: CropToolProps) {
   const [cropRegion, setCropRegion] = useState<CropRegion | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -79,6 +81,32 @@ export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProp
         method: result.method
       }
     })
+
+    // Add face-aware crop suggestions if faces are detected
+    if (image.faces && image.faces.length > 0) {
+      try {
+        const faceAwareCrop = generateFaceAwareCrop(imageData, image.faces)
+        suggestions.push(faceAwareCrop)
+        console.log('Added face-aware crop suggestion:', faceAwareCrop)
+      } catch (error) {
+        console.warn('Failed to generate face-aware crop:', error)
+      }
+    } else {
+      // Try to detect faces for cropping if not already detected
+      try {
+        const faceResult = await faceDetectionWorkerManager.detectFaces(imageData, {
+          confidenceThreshold: 0.6
+        })
+        
+        if (faceResult.faces.length > 0) {
+          const faceAwareCrop = generateFaceAwareCrop(imageData, faceResult.faces)
+          suggestions.push(faceAwareCrop)
+          console.log('Generated face-aware crop from new detection:', faceAwareCrop)
+        }
+      } catch (error) {
+        console.warn('Face detection failed for crop suggestions:', error)
+      }
+    }
     
     // Sort by confidence
     suggestions.sort((a, b) => b.confidence - a.confidence)
@@ -92,6 +120,61 @@ export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProp
         width: image.autoCropRegion.width,
         height: image.autoCropRegion.height
       })
+    }
+  }
+
+  const generateFaceAwareCrop = (imageData: ImageData, faces: ImageRec['faces']) => {
+    if (!faces || faces.length === 0) {
+      throw new Error('No faces provided for face-aware crop')
+    }
+
+    const { width, height } = imageData
+    
+    // Calculate bounding box around all faces
+    let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0
+    
+    faces.forEach(face => {
+      const faceX = (face.bbox.x / 100) * width
+      const faceY = (face.bbox.y / 100) * height  
+      const faceWidth = (face.bbox.width / 100) * width
+      const faceHeight = (face.bbox.height / 100) * height
+      
+      minX = Math.min(minX, faceX)
+      minY = Math.min(minY, faceY)
+      maxX = Math.max(maxX, faceX + faceWidth)
+      maxY = Math.max(maxY, faceY + faceHeight)
+    })
+    
+    // Add padding around faces (30% on each side)
+    const padding = 0.3
+    const faceWidth = maxX - minX
+    const faceHeight = maxY - minY
+    const paddingX = faceWidth * padding
+    const paddingY = faceHeight * padding
+    
+    // Expand crop region with padding
+    const cropX = Math.max(0, minX - paddingX)
+    const cropY = Math.max(0, minY - paddingY)
+    const cropRight = Math.min(width, maxX + paddingX)
+    const cropBottom = Math.min(height, maxY + paddingY)
+    const cropWidth = cropRight - cropX
+    const cropHeight = cropBottom - cropY
+    
+    // Calculate confidence based on face coverage and composition
+    const faceCoverage = (faceWidth * faceHeight) / (cropWidth * cropHeight)
+    const aspectRatio = cropWidth / cropHeight
+    const aspectScore = 1 - Math.abs(aspectRatio - 1.5) / 1.5 // Prefer 3:2 aspect ratio
+    const confidence = Math.min(0.95, faceCoverage * 0.6 + aspectScore * 0.4)
+    
+    return {
+      region: {
+        x: Math.floor(cropX),
+        y: Math.floor(cropY), 
+        width: Math.floor(cropWidth),
+        height: Math.floor(cropHeight)
+      },
+      confidence,
+      method: `face-aware (${faces.length} ${faces.length === 1 ? 'face' : 'faces'})`
     }
   }
   
@@ -137,19 +220,109 @@ export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProp
   }
   
   const handleCrop = async () => {
-    if (!cropRegion || !image.fileHandle) return
+    if (!cropRegion) return
     
     setIsProcessing(true)
     try {
-      const file = await image.fileHandle.getFile()
-      const croppedBlob = await applyCrop(file, cropRegion)
-      onCropApplied?.(croppedBlob)
+      let croppedBlob: Blob
+      
+      // Try to use FileHandle first (if we have recent user activation)
+      if (image.fileHandle) {
+        try {
+          const file = await image.fileHandle.getFile()
+          croppedBlob = await applyCrop(file, cropRegion)
+        } catch (fileError) {
+          console.warn('FileHandle access failed, using preview fallback:', fileError)
+          // Fallback to using the preview image
+          croppedBlob = await applyCropFromPreview(image.previewDataUrl!, cropRegion)
+        }
+      } else if (image.previewDataUrl) {
+        // Use preview if no file handle
+        croppedBlob = await applyCropFromPreview(image.previewDataUrl, cropRegion)
+      } else {
+        throw new Error('No image source available for cropping')
+      }
+      
+      // Create new preview URL from cropped image
+      const newPreviewUrl = URL.createObjectURL(croppedBlob)
+      
+      // Update image record with new dimensions and crop info
+      const updatedImage: Partial<ImageRec> = {
+        previewDataUrl: newPreviewUrl,
+        autoCropRegion: {
+          x: cropRegion.x,
+          y: cropRegion.y,
+          width: cropRegion.width,
+          height: cropRegion.height,
+          confidence: 1.0, // User-applied crop has max confidence
+          method: 'user-applied'
+        }
+      }
+      
+      // Notify parent components
+      onCropApplied?.(croppedBlob, newPreviewUrl)
+      onImageUpdate?.(updatedImage)
+      
+      console.log('Crop applied successfully:', {
+        originalSize: `${image.metadata.width}x${image.metadata.height}`,
+        cropRegion,
+        newPreview: newPreviewUrl
+      })
+      
     } catch (error) {
       console.error('Failed to apply crop:', error)
       alert('Failed to apply crop: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  const applyCropFromPreview = async (previewUrl: string, cropRegion: CropRegion): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const img = new Image()
+      
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'))
+        return
+      }
+      
+      img.onload = () => {
+        canvas.width = cropRegion.width
+        canvas.height = cropRegion.height
+        
+        ctx.drawImage(
+          img,
+          cropRegion.x,
+          cropRegion.y,
+          cropRegion.width,
+          cropRegion.height,
+          0,
+          0,
+          cropRegion.width,
+          cropRegion.height
+        )
+        
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error('Failed to create cropped image blob'))
+            }
+          },
+          'image/jpeg',
+          0.9
+        )
+      }
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load preview image'))
+      }
+      
+      img.src = previewUrl
+    })
   }
   
   const handleReset = () => {
@@ -164,12 +337,28 @@ export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProp
   }
   
   const downloadCrop = async () => {
-    if (!cropRegion || !image.fileHandle) return
+    if (!cropRegion) return
     
     setIsProcessing(true)
     try {
-      const file = await image.fileHandle.getFile()
-      const croppedBlob = await applyCrop(file, cropRegion)
+      let croppedBlob: Blob
+      
+      // Try to use FileHandle first (if we have recent user activation)
+      if (image.fileHandle) {
+        try {
+          const file = await image.fileHandle.getFile()
+          croppedBlob = await applyCrop(file, cropRegion)
+        } catch (fileError) {
+          console.warn('FileHandle access failed for download, using preview fallback:', fileError)
+          // Fallback to using the preview image
+          croppedBlob = await applyCropFromPreview(image.previewDataUrl!, cropRegion)
+        }
+      } else if (image.previewDataUrl) {
+        // Use preview if no file handle
+        croppedBlob = await applyCropFromPreview(image.previewDataUrl, cropRegion)
+      } else {
+        throw new Error('No image source available for cropping')
+      }
       
       // Create download link
       const url = URL.createObjectURL(croppedBlob)
@@ -241,10 +430,19 @@ export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProp
           
           <div className="space-y-4">
             <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Auto Crop Suggestions
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Auto Crop Suggestions
+                </h3>
+                <button
+                  onClick={() => autoCropSuggestions.length > 0 && applySuggestion(autoCropSuggestions[0])}
+                  disabled={autoCropSuggestions.length === 0}
+                  className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                >
+                  Apply Best
+                </button>
+              </div>
               <div className="space-y-2">
                 {autoCropSuggestions.map((suggestion, index) => (
                   <button

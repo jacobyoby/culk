@@ -49,6 +49,14 @@ export function useCurrentProject() {
   return useLiveQuery(() => db.getCurrentProject())
 }
 
+export function useImageActions() {
+  return {
+    updateRating: (imageId: string, rating: number) => db.updateImageRating(imageId, rating),
+    updateFlag: (imageId: string, flag: 'pick' | 'reject' | null) => db.updateImageFlag(imageId, flag),
+    updateCrop: (imageId: string, updates: Partial<ImageRec>) => db.updateImageCrop(imageId, updates)
+  }
+}
+
 export function useSessions() {
   return useLiveQuery(() => db.sessions.toArray()) ?? []
 }
