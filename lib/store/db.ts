@@ -63,6 +63,13 @@ export class PhotoCullDB extends Dexie {
       modifiedAt: new Date() 
     })
   }
+
+  async updateImageCrop(imageId: string, updates: Partial<ImageRec>) {
+    await this.images.update(imageId, {
+      ...updates,
+      modifiedAt: new Date()
+    })
+  }
   
   async createGroup(memberIds: string[], autoPickId?: string): Promise<GroupRec> {
     const group: GroupRec = {
