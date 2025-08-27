@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderOpen, Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { FolderOpen, Upload, FileImage, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { importer, ImportProgress } from '@/lib/fs/importer'
 import { useSessions } from '@/lib/store/hooks'
 import { checkFileSystemSupport } from '@/lib/fs/file-system-access'
@@ -17,7 +17,7 @@ export default function ImportPage() {
   
   const support = checkFileSystemSupport()
   
-  const handleImport = useCallback(async () => {
+  const handleFolderImport = useCallback(async () => {
     if (!support.supported) {
       setError('Your browser does not support the File System Access API')
       return
@@ -31,6 +31,38 @@ export default function ImportPage() {
       const session = await importer.importFolder({
         generateThumbnails: true,
         extractExif: true,
+        detectAutoCrop: true,
+        detectFaces: true,
+        maxConcurrent: 4,
+        onProgress: setProgress
+      })
+      
+      if (session) {
+        router.push('/cull')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import failed')
+    } finally {
+      setIsImporting(false)
+    }
+  }, [router, support.supported])
+
+  const handleFilesImport = useCallback(async () => {
+    if (!support.supported) {
+      setError('Your browser does not support the File System Access API')
+      return
+    }
+    
+    setIsImporting(true)
+    setError(null)
+    setProgress(null)
+    
+    try {
+      const session = await importer.importFiles({
+        generateThumbnails: true,
+        extractExif: true,
+        detectAutoCrop: true,
+        detectFaces: true,
         maxConcurrent: 4,
         onProgress: setProgress
       })
@@ -76,21 +108,38 @@ export default function ImportPage() {
         )}
         
         {!isImporting && !progress && (
-          <div className="grid md:grid-cols-2 gap-6">
-            <button
-              onClick={handleImport}
-              disabled={!support.supported}
-              className="group relative overflow-hidden rounded-xl bg-card p-8 border border-border hover:border-primary transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="flex flex-col items-center space-y-4">
-                <FolderOpen className="w-16 h-16 text-primary" />
-                <h2 className="text-xl font-semibold">Select Folder</h2>
-                <p className="text-muted-foreground text-center">
-                  Choose a folder containing your RAW and JPEG files
-                </p>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </button>
+          <>
+            <div className="grid md:grid-cols-2 gap-6">
+              <button
+                onClick={handleFolderImport}
+                disabled={!support.supported}
+                className="group relative overflow-hidden rounded-xl bg-card p-8 border border-border hover:border-primary transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex flex-col items-center space-y-4">
+                  <FolderOpen className="w-16 h-16 text-primary" />
+                  <h2 className="text-xl font-semibold">Select Folder</h2>
+                  <p className="text-muted-foreground text-center">
+                    Choose a folder containing your RAW and JPEG files
+                  </p>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+
+              <button
+                onClick={handleFilesImport}
+                disabled={!support.supported}
+                className="group relative overflow-hidden rounded-xl bg-card p-8 border border-border hover:border-primary transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex flex-col items-center space-y-4">
+                  <FileImage className="w-16 h-16 text-secondary-foreground" />
+                  <h2 className="text-xl font-semibold">Select Files</h2>
+                  <p className="text-muted-foreground text-center">
+                    Choose individual RAW and JPEG files (supports multiple selection)
+                  </p>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
             
             <div className="bg-card rounded-xl border border-border p-8">
               <h2 className="text-xl font-semibold mb-4">Recent Sessions</h2>
@@ -126,7 +175,7 @@ export default function ImportPage() {
                 </div>
               )}
             </div>
-          </div>
+          </>
         )}
         
         {isImporting && progress && (

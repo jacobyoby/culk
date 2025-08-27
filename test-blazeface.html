@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlazeFace Test</title>
+</head>
+<body>
+    <h1>BlazeFace ONNX Model Test</h1>
+    <canvas id="canvas" width="128" height="128" style="border: 1px solid black;"></canvas>
+    <div id="output"></div>
+    
+    <script type="module">
+        import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.esm.min.js';
+        
+        async function testBlazeFace() {
+            try {
+                console.log('ONNX Runtime Web version:', ort.version);
+                
+                // Create a test image (128x128)
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Draw a simple test pattern
+                ctx.fillStyle = 'rgb(200, 150, 100)'; // skin-like color
+                ctx.fillRect(30, 30, 70, 70);
+                
+                const imageData = ctx.getImageData(0, 0, 128, 128);
+                
+                // Try to load the BlazeFace model
+                console.log('Loading BlazeFace model...');
+                const session = await ort.InferenceSession.create('/models/blazeface.onnx', {
+                    executionProviders: ['webgl', 'wasm']
+                });
+                
+                console.log('Model loaded successfully!');
+                console.log('Input names:', session.inputNames);
+                console.log('Output names:', session.outputNames);
+                
+                // Create input tensor
+                const rgbData = new Float32Array(3 * 128 * 128);
+                for (let i = 0; i < 128 * 128; i++) {
+                    const pixelIndex = i * 4;
+                    rgbData[i] = (imageData.data[pixelIndex] / 255.0) * 2.0 - 1.0;     // R
+                    rgbData[i + 128 * 128] = (imageData.data[pixelIndex + 1] / 255.0) * 2.0 - 1.0; // G  
+                    rgbData[i + 2 * 128 * 128] = (imageData.data[pixelIndex + 2] / 255.0) * 2.0 - 1.0; // B
+                }
+                
+                const inputTensor = new ort.Tensor('float32', rgbData, [1, 3, 128, 128]);
+                
+                // Run inference
+                console.log('Running inference...');
+                const results = await session.run({ input: inputTensor });
+                
+                console.log('Inference complete!');
+                console.log('Results:', results);
+                
+                document.getElementById('output').innerHTML = `
+                    <p>✅ BlazeFace model loaded and running successfully!</p>
+                    <p>Model inputs: ${session.inputNames.join(', ')}</p>
+                    <p>Model outputs: ${session.outputNames.join(', ')}</p>
+                    <p>Result keys: ${Object.keys(results).join(', ')}</p>
+                `;
+                
+                inputTensor.dispose();
+                Object.values(results).forEach(tensor => tensor.dispose());
+                
+            } catch (error) {
+                console.error('BlazeFace test failed:', error);
+                document.getElementById('output').innerHTML = `
+                    <p>❌ Error: ${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        }
+        
+        testBlazeFace();
+    </script>
+</body>
+</html>

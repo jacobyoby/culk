@@ -99,7 +99,7 @@ export function useSortedImages(
   return useLiveQuery(async () => {
     const images = await db.images.toArray()
     
-    const sorted = [...images].sort((a, b) => {
+    const sorted = images.slice().sort((a, b) => {
       let comparison = 0
       
       switch (sortMode) {
