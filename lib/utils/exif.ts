@@ -23,16 +23,21 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
         type: typeof focalLengthValue
       })
       
+      let focalLengthResult = null
+      
       // Try description first as it might have the correct value
       if (tags.FocalLength.description) {
-        const descMatch = tags.FocalLength.description.match(/([0-9.]+)/);
+        const descMatch = tags.FocalLength.description.match(/([0-9.]+)/)
         if (descMatch) {
-          const descValue = parseFloat(descMatch[1]);
+          const descValue = parseFloat(descMatch[1])
           if (!isNaN(descValue)) {
-            metadata.focalLength = Math.round(descValue);
+            focalLengthResult = Math.round(descValue)
           }
         }
-      } else {
+      }
+      
+      // If description didn't work, try raw value
+      if (focalLengthResult === null && focalLengthValue !== undefined) {
         // Handle rational numbers (array of [numerator, denominator])
         if (Array.isArray(focalLengthValue) && focalLengthValue.length === 2) {
           focalLengthValue = focalLengthValue[0] / focalLengthValue[1]
@@ -43,11 +48,16 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
         const focalLengthNum = parseFloat(focalLengthValue)
         if (!isNaN(focalLengthNum)) {
           if (focalLengthNum > 1000) {
-            metadata.focalLength = Math.round(focalLengthNum / 100)
+            focalLengthResult = Math.round(focalLengthNum / 100)
           } else {
-            metadata.focalLength = Math.round(focalLengthNum)
+            focalLengthResult = Math.round(focalLengthNum)
           }
         }
+      }
+      
+      if (focalLengthResult !== null) {
+        metadata.focalLength = focalLengthResult
+        console.log('Final focal length value:', focalLengthResult)
       }
     }
     
@@ -61,16 +71,21 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
         type: typeof apertureValue
       })
       
+      let apertureResult = null
+      
       // Try description first as it might have the correct f-stop value
       if (apertureTag?.description) {
         const descMatch = apertureTag.description.match(/([0-9.]+)/)
         if (descMatch) {
           const descValue = parseFloat(descMatch[1])
           if (!isNaN(descValue)) {
-            metadata.aperture = parseFloat(descValue.toFixed(1))
+            apertureResult = parseFloat(descValue.toFixed(1))
           }
         }
-      } else {
+      }
+      
+      // If description didn't work, try raw value
+      if (apertureResult === null && apertureValue !== undefined) {
         // Handle rational numbers (array of [numerator, denominator])
         if (Array.isArray(apertureValue) && apertureValue.length === 2) {
           apertureValue = apertureValue[0] / apertureValue[1]
@@ -81,15 +96,20 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
         const apertureNum = parseFloat(apertureValue)
         if (!isNaN(apertureNum)) {
           if (apertureNum > 1000) {
-            metadata.aperture = parseFloat((apertureNum / 1000).toFixed(1))
+            apertureResult = parseFloat((apertureNum / 1000).toFixed(1))
           } else if (apertureNum > 100) {
-            metadata.aperture = parseFloat((apertureNum / 100).toFixed(1))
+            apertureResult = parseFloat((apertureNum / 100).toFixed(1))
           } else if (apertureNum > 10) {
-            metadata.aperture = parseFloat((apertureNum / 10).toFixed(1))
+            apertureResult = parseFloat((apertureNum / 10).toFixed(1))
           } else {
-            metadata.aperture = parseFloat(apertureNum.toFixed(1))
+            apertureResult = parseFloat(apertureNum.toFixed(1))
           }
         }
+      }
+      
+      if (apertureResult !== null) {
+        metadata.aperture = apertureResult
+        console.log('Final aperture value:', apertureResult)
       }
     }
     if (tags.ExposureTime) metadata.shutterSpeed = tags.ExposureTime.description
