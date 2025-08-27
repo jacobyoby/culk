@@ -239,43 +239,34 @@ export function ImageViewer({
             </div>
           )}
           
-          {(() => {
-            console.log('Image viewer face data:', {
-              showFaceBoxes,
-              imageName: image.fileName,
-              hasFaces: !!image.faces,
-              faceCount: image.faces?.length || 0,
-              faces: image.faces
-            })
-            return showFaceBoxes && image.faces && (
-              <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                {image.faces.map(face => (
-                  <g key={face.id}>
-                    <rect
+          {showFaceBoxes && image.faces && image.faces.length > 0 && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+              {image.faces.map(face => (
+                <g key={face.id}>
+                  <rect
+                    x={`${face.bbox.x}%`}
+                    y={`${face.bbox.y}%`}
+                    width={`${face.bbox.width}%`}
+                    height={`${face.bbox.height}%`}
+                    fill="none"
+                    stroke={face.eyeState?.left === 'closed' || face.eyeState?.right === 'closed' ? '#ef4444' : '#10b981'}
+                    strokeWidth="2"
+                  />
+                  {face.eyeState && (
+                    <text
                       x={`${face.bbox.x}%`}
-                      y={`${face.bbox.y}%`}
-                      width={`${face.bbox.width}%`}
-                      height={`${face.bbox.height}%`}
-                      fill="none"
-                      stroke={face.eyeState?.left === 'closed' || face.eyeState?.right === 'closed' ? '#ef4444' : '#10b981'}
-                      strokeWidth="2"
-                    />
-                    {face.eyeState && (
-                      <text
-                        x={`${face.bbox.x}%`}
-                        y={`${face.bbox.y - 1}%`}
-                        fill="white"
-                        fontSize="12"
-                        className="font-semibold"
-                      >
-                        {face.eyeState.left === 'open' && face.eyeState.right === 'open' ? '👁️' : '😴'}
-                      </text>
-                    )}
-                  </g>
-                ))}
-              </svg>
-            )
-          })()}
+                      y={`${face.bbox.y - 1}%`}
+                      fill="white"
+                      fontSize="12"
+                      className="font-semibold"
+                    >
+                      {face.eyeState.left === 'open' && face.eyeState.right === 'open' ? '👁️' : '😴'}
+                    </text>
+                  )}
+                </g>
+              ))}
+            </svg>
+          )}
           </motion.div>
         </ImageProcessingErrorBoundary>
       </div>
