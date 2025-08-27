@@ -32,6 +32,80 @@ export async function selectFolder(): Promise<FileSystemDirectoryHandle | null> 
   }
 }
 
+export async function selectFiles(): Promise<FileSystemFileHandle[] | null> {
+  if (!('showOpenFilePicker' in window)) {
+    throw new Error('File System Access API not supported')
+  }
+
+  try {
+    const fileHandles = await window.showOpenFilePicker({
+      multiple: true,
+      types: [
+        {
+          description: 'Image files',
+          accept: {
+            'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'],
+            'image/x-canon-cr2': ['.cr2'],
+            'image/x-canon-cr3': ['.cr3'],
+            'image/x-nikon-nef': ['.nef'],
+            'image/x-sony-arw': ['.arw'],
+            'image/x-adobe-dng': ['.dng'],
+            'image/x-olympus-orf': ['.orf'],
+            'image/x-panasonic-rw2': ['.rw2'],
+            'image/x-fuji-raf': ['.raf'],
+            'image/x-samsung-srw': ['.srw'],
+            'image/x-pentax-pef': ['.pef'],
+            'image/x-sigma-x3f': ['.x3f']
+          }
+        }
+      ]
+    })
+    return fileHandles
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') {
+      return null
+    }
+    throw error
+  }
+}
+
+export async function selectSingleFile(): Promise<FileSystemFileHandle | null> {
+  if (!('showOpenFilePicker' in window)) {
+    throw new Error('File System Access API not supported')
+  }
+
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [
+        {
+          description: 'Image files',
+          accept: {
+            'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'],
+            'image/x-canon-cr2': ['.cr2'],
+            'image/x-canon-cr3': ['.cr3'],
+            'image/x-nikon-nef': ['.nef'],
+            'image/x-sony-arw': ['.arw'],
+            'image/x-adobe-dng': ['.dng'],
+            'image/x-olympus-orf': ['.orf'],
+            'image/x-panasonic-rw2': ['.rw2'],
+            'image/x-fuji-raf': ['.raf'],
+            'image/x-samsung-srw': ['.srw'],
+            'image/x-pentax-pef': ['.pef'],
+            'image/x-sigma-x3f': ['.x3f']
+          }
+        }
+      ]
+    })
+    return fileHandle
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') {
+      return null
+    }
+    throw error
+  }
+}
+
 export async function* walkDirectory(
   dirHandle: FileSystemDirectoryHandle,
   path = ''

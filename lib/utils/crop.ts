@@ -272,7 +272,10 @@ function findContentBounds(
 }
 
 function calculateEdgeThreshold(edges: number[]): number {
-  const sortedEdges = [...edges].sort((a, b) => a - b)
+  if (edges.length === 0) return 0
+  
+  // Avoid spreading large arrays to prevent stack overflow
+  const sortedEdges = edges.slice().sort((a, b) => a - b)
   const percentile95 = sortedEdges[Math.floor(sortedEdges.length * 0.95)]
   return percentile95 * 0.3 // 30% of 95th percentile
 }
@@ -368,7 +371,10 @@ function findInterestBounds(
 }
 
 function calculateInterestThreshold(interestMap: number[]): number {
-  const sortedInterest = [...interestMap].sort((a, b) => a - b)
+  if (interestMap.length === 0) return 0
+  
+  // Avoid spreading large arrays to prevent stack overflow
+  const sortedInterest = interestMap.slice().sort((a, b) => a - b)
   const percentile80 = sortedInterest[Math.floor(sortedInterest.length * 0.8)]
   return percentile80 * 0.5
 }
@@ -515,10 +521,19 @@ function combineContentMaps(
   const combined = new Array(width * height).fill(0)
   const { edgeMap, colorMap, saliencyMap, faceHeuristics } = maps
   
-  // Normalize each map to 0-1 range
+  // Normalize each map to 0-1 range (avoiding stack overflow with large arrays)
   const normalizeMap = (map: number[]) => {
-    const max = Math.max(...map)
-    const min = Math.min(...map)
+    if (map.length === 0) return map
+    
+    let max = map[0]
+    let min = map[0]
+    
+    // Find min/max without spreading large arrays
+    for (let i = 1; i < map.length; i++) {
+      if (map[i] > max) max = map[i]
+      if (map[i] < min) min = map[i]
+    }
+    
     const range = max - min
     return range > 0 ? map.map(v => (v - min) / range) : map
   }

@@ -55,6 +55,11 @@ export interface ImageRec {
   importSessionId: string
 }
 
+export interface EyeState {
+  left: 'open' | 'closed' | 'unknown'
+  right: 'open' | 'closed' | 'unknown'
+}
+
 export interface FaceDetection {
   id: string
   bbox: { x: number; y: number; width: number; height: number }
@@ -65,11 +70,7 @@ export interface FaceDetection {
     nose?: { x: number; y: number }
     mouth?: { x: number; y: number }
   }
-  eyeState?: {
-    left: 'open' | 'closed' | 'unknown'
-    right: 'open' | 'closed' | 'unknown'
-    confidence: number
-  }
+  eyeState?: EyeState
   focusScore?: number
 }
 
@@ -140,6 +141,7 @@ export interface UIState {
   showFaceBoxes: boolean
   showMetadata: boolean
   showHistogram: boolean
+  showCropTool: boolean
   compareImages: string[]
   surveyImages: string[]
   filterMode?: 'all' | 'picks' | 'rejects' | 'unrated' | 'blurry' | 'eyes-closed'
