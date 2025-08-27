@@ -84,10 +84,18 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
         
         // Try description first
         if (apertureTag.description) {
-          const descMatch = apertureTag.description.match(/([0-9.]+)/)
+          console.log(`Parsing description for ${tagName}:`, apertureTag.description)
+          // Handle "f/X.X" format
+          let descMatch = apertureTag.description.match(/f\/([0-9.]+)/)
+          if (!descMatch) {
+            // Handle plain number format
+            descMatch = apertureTag.description.match(/([0-9.]+)/)
+          }
+          
           if (descMatch) {
             const descValue = parseFloat(descMatch[1])
-            if (!isNaN(descValue) && descValue > 0) {
+            console.log(`Extracted value from description:`, descValue)
+            if (!isNaN(descValue) && descValue > 0 && descValue < 100) { // reasonable aperture range
               apertureResult = parseFloat(descValue.toFixed(1))
               console.log(`Aperture from ${tagName} description:`, apertureResult)
               break
@@ -107,19 +115,26 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
           }
           
           const apertureNum = parseFloat(apertureValue)
+          console.log(`Raw aperture number for ${tagName}:`, apertureNum)
           if (!isNaN(apertureNum) && apertureNum > 0) {
-            // Try different scaling factors
+            // Apply scaling only if result would be in reasonable aperture range (f/1.0 to f/22)
+            let scaledValue = apertureNum
             if (apertureNum > 1000) {
-              apertureResult = parseFloat((apertureNum / 1000).toFixed(1))
+              scaledValue = apertureNum / 1000
             } else if (apertureNum > 100) {
-              apertureResult = parseFloat((apertureNum / 100).toFixed(1))
-            } else if (apertureNum > 10) {
-              apertureResult = parseFloat((apertureNum / 10).toFixed(1))
-            } else {
-              apertureResult = parseFloat(apertureNum.toFixed(1))
+              scaledValue = apertureNum / 100
+            } else if (apertureNum > 22) { // f/22 is common max aperture
+              scaledValue = apertureNum / 10
             }
-            console.log(`Aperture from ${tagName} raw value:`, apertureResult)
-            break
+            
+            // Only accept if the result is in a reasonable aperture range
+            if (scaledValue >= 1.0 && scaledValue <= 22.0) {
+              apertureResult = parseFloat(scaledValue.toFixed(1))
+              console.log(`Aperture from ${tagName} raw value (scaled ${apertureNum} -> ${scaledValue}):`, apertureResult)
+              break
+            } else {
+              console.log(`Rejecting aperture value ${scaledValue} - outside reasonable range`)
+            }
           }
         }
       }
@@ -213,10 +228,16 @@ export function formatExposureTime(shutterSpeed: string): string {
 }
 
 export function formatAperture(aperture: number): string {
-  if (!aperture || isNaN(aperture)) return ''
+  console.log('formatAperture called with:', aperture, typeof aperture)
+  if (!aperture || isNaN(aperture)) {
+    console.log('formatAperture returning empty - aperture is falsy or NaN')
+    return ''
+  }
   // Ensure we use a dot as decimal separator, not comma
   const apertureStr = aperture.toFixed(1).replace(',', '.')
-  return `f/${apertureStr}`
+  const result = `f/${apertureStr}`
+  console.log('formatAperture result:', result)
+  return result
 }
 
 export function formatFocalLength(focalLength: number): string {
