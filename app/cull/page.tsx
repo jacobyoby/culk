@@ -217,7 +217,10 @@ export default function CullPage() {
         sortMode={uiState.sortMode}
         onSortModeChange={(sort) => setUIState(prev => ({ ...prev, sortMode: sort }))}
         showFaceBoxes={uiState.showFaceBoxes}
-        onToggleFaceBoxes={() => setUIState(prev => ({ ...prev, showFaceBoxes: !prev.showFaceBoxes }))}
+        onToggleFaceBoxes={() => {
+          console.log('Face boxes toggle clicked, current state:', uiState.showFaceBoxes)
+          setUIState(prev => ({ ...prev, showFaceBoxes: !prev.showFaceBoxes }))
+        }}
         showMetadata={uiState.showMetadata}
         onToggleMetadata={() => setUIState(prev => ({ ...prev, showMetadata: !prev.showMetadata }))}
         onOpenSettings={() => router.push('/settings')}

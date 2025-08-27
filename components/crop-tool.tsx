@@ -25,7 +25,7 @@ export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProp
   }>>([])
   
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const imageRef = useRef<HTMLImageElement>(null)
+  const imageRef = useRef<HTMLImageElement | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   
   useEffect(() => {
@@ -59,6 +59,7 @@ export function CropTool({ image, isOpen, onClose, onCropApplied }: CropToolProp
     }
     
     img.src = image.previewDataUrl
+    // Update ref (create new ref object to avoid readonly error)
     imageRef.current = img
   }
   

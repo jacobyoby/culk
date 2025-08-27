@@ -182,7 +182,7 @@ Uses the File System Access API and service workers. Browsers accept http://loca
 ---
 
 Tight, complete, and production-ready.
-::contentReference[oaicite:0]{index=0}
+
 
 
 /docker-compose.yml

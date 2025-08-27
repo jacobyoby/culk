@@ -163,8 +163,8 @@ export class AutoGrouper {
   }
   
   private async createGroup(images: ImageRec[]): Promise<GroupRec> {
-    // Sort by quality score to pick the best as representative
-    const sortedImages = [...images].sort((a, b) => {
+    // Sort by quality score to pick the best as representative (avoid spreading for large arrays)
+    const sortedImages = images.slice().sort((a, b) => {
       const scoreA = this.calculateImageScore(a)
       const scoreB = this.calculateImageScore(b)
       return scoreB - scoreA

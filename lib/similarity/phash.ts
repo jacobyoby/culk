@@ -17,8 +17,9 @@ export async function calculatePHash(imageData: ImageData): Promise<string> {
     }
   }
   
-  // Calculate median
-  const median = [...hash].sort((a, b) => a - b)[Math.floor(hash.length / 2)]
+  // Calculate median (avoid spreading potentially large arrays)
+  const sortedHash = hash.slice().sort((a, b) => a - b)
+  const median = sortedHash[Math.floor(sortedHash.length / 2)]
   
   // Generate binary hash
   let binaryHash = ''
