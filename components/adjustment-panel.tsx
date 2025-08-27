@@ -1,10 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Sliders, RotateCcw, ChevronDown, ChevronUp, X, Wand2, Sparkles, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Sliders, RotateCcw, ChevronDown, ChevronUp, X, Wand2, Sparkles } from 'lucide-react'
 import { ImageAdjustments, ImageRec } from '@/lib/types'
 import { getDefaultAdjustments, resetAdjustments } from '@/lib/utils/adjustments'
 import { autoEnhanceFromCanvas, applyPreset, getAutoEnhancePresets, isEnhancementWorthwhile } from '@/lib/utils/auto-enhance'
+import { Button, LoadingButton, IconButton } from '@/components/ui/button'
+import { useProcessingState, formatEnhancementMessage, formatPresetMessage } from '@/lib/utils/processing-state'
+import { StatusMessageComponent } from '@/components/ui/status-message'
+import { withImageProcessingErrorHandling, withCanvasErrorHandling } from '@/lib/utils/error-handling'
+import { createCanvasFromImage } from '@/lib/utils/canvas'
 
 interface AdjustmentPanelProps {
   adjustments: ImageAdjustments
@@ -78,165 +83,120 @@ export function AdjustmentPanel({
   className = '' 
 }: AdjustmentPanelProps) {
   const [expandedSection, setExpandedSection] = useState<'basic' | 'advanced' | null>('basic')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [enhanceResult, setEnhanceResult] = useState<string | null>(null)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const processingState = useProcessingState({
+    successDuration: 3000,
+    errorDuration: 5000
+  })
   
   // Use prop-based active preset or fall back to local state
   const activePreset = propActivePreset !== undefined ? propActivePreset : null
 
-  // Listen for auto enhance events from keyboard shortcuts
-  useEffect(() => {
-    const handleAutoEnhanceEvent = (event: CustomEvent) => {
-      if (image && event.detail.imageId === image.id) {
-        handleAutoEnhance()
-      }
-    }
-
-    document.addEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
-    return () => document.removeEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
-  }, [image])
-
-  // Clear any pending timeouts when image changes
-  useEffect(() => {
-    // Clear any pending timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
-    }
-    // Clear status message immediately (but not preset, as that's stored per image)
-    setEnhanceResult(null)
-  }, [image?.id])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-        timeoutRef.current = null
-      }
-    }
-  }, [])
-
-  const handleReset = () => {
-    onAdjustmentsChange(resetAdjustments())
-    setEnhanceResult(null)
-    onPresetChange?.(null)
-  }
-
-  const handleAutoEnhance = async () => {
+  // Define handleAutoEnhance callback first
+  const handleAutoEnhance = useCallback(async () => {
+    console.log('Auto enhance triggered', { 
+      hasImage: !!image, 
+      hasPreview: !!image?.previewDataUrl,
+      imageId: image?.id,
+      fileName: image?.fileName
+    })
+    
     if (!image?.previewDataUrl) {
-      setEnhanceResult('No image preview available')
+      console.error('Auto enhance failed: No image preview available')
+      processingState.setError('No image preview available')
       return
     }
 
-    setIsProcessing(true)
-    setEnhanceResult(null)
     onPresetChange?.(null) // Clear preset selection when auto-enhancing
+    processingState.startProcessing() // Start processing state
     
-    let img: HTMLImageElement | null = null
-    let canvas: HTMLCanvasElement | null = null
-    
-    try {
-      // Create a canvas from the image preview
-      img = new Image()
-      
-      await new Promise((resolve, reject) => {
-        if (!img) return reject(new Error('Image creation failed'))
-        
-        const cleanup = () => {
-          img!.onload = null
-          img!.onerror = null
-        }
-        
-        img.onload = () => {
-          cleanup()
-          resolve(undefined)
-        }
-        
-        img.onerror = () => {
-          cleanup()
-          reject(new Error('Failed to load image'))
-        }
-        
-        img.src = image.previewDataUrl!
-      })
-
-      canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d', { 
-        // Optimize for frequent reads
-        willReadFrequently: true 
+    const result = await withImageProcessingErrorHandling(async () => {
+      console.log('Creating canvas from image...')
+      const { canvas, cleanup } = await createCanvasFromImage(image.previewDataUrl!, {
+        willReadFrequently: true
       })
       
-      if (!ctx || !img) {
-        throw new Error('Could not get canvas context')
-      }
-
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.drawImage(img, 0, 0)
-
-      const result = await autoEnhanceFromCanvas(canvas, image.metadata, true)
+      console.log('Canvas created', { width: canvas.width, height: canvas.height })
       
-      if (isEnhancementWorthwhile(result)) {
-        onAdjustmentsChange(result.adjustments)
-        const confidencePercent = Math.round(result.confidence * 100)
-        const confidenceLabel = confidencePercent >= 80 ? 'High' : confidencePercent >= 60 ? 'Good' : 'Moderate'
-        setEnhanceResult(`Auto-enhanced with ${confidenceLabel} confidence (${confidencePercent}%)`)
-      } else {
-        setEnhanceResult('No significant improvements detected')
-      }
-    } catch (error) {
-      console.error('Auto enhance failed:', error)
-      setEnhanceResult('Auto enhance failed')
-    } finally {
-      // Clean up resources
-      if (img) {
-        img.onload = null
-        img.onerror = null
-        img.src = ''
-        img = null
-      }
-      
-      if (canvas) {
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height)
+      try {
+        console.log('Running auto enhance algorithm...')
+        const enhanceResult = await autoEnhanceFromCanvas(canvas, image.metadata, true)
+        
+        console.log('Enhancement result:', {
+          confidence: enhanceResult.confidence,
+          adjustments: enhanceResult.adjustments,
+          isWorthwhile: isEnhancementWorthwhile(enhanceResult)
+        })
+        
+        if (isEnhancementWorthwhile(enhanceResult)) {
+          onAdjustmentsChange(enhanceResult.adjustments)
+          return {
+            applied: true,
+            confidence: enhanceResult.confidence,
+            adjustments: enhanceResult.adjustments
+          }
+        } else {
+          return {
+            applied: false
+          }
         }
-        canvas.width = 0
-        canvas.height = 0
-        canvas = null
+      } finally {
+        cleanup()
       }
-      
-      setIsProcessing(false)
-      
-      // Clear any existing timeout
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-      // Set new timeout and store reference
-      timeoutRef.current = setTimeout(() => {
-        setEnhanceResult(null)
-        timeoutRef.current = null
-      }, 3000)
+    }, 'Auto enhance')
+    
+    if (result) {
+      console.log('Auto enhance completed successfully', result)
+      const message = formatEnhancementMessage(result)
+      processingState.setSuccess(`${message.title}: ${message.message}`)
+    } else {
+      console.error('Auto enhance failed - no result returned')
+      processingState.setError('Auto enhance failed')
     }
+  }, [image?.previewDataUrl, image?.metadata, onAdjustmentsChange, onPresetChange, processingState])
+
+  // Listen for auto enhance events from keyboard shortcuts
+  useEffect(() => {
+    const handleAutoEnhanceEvent = (event: CustomEvent) => {
+      console.log('Auto enhance event received', { 
+        eventImageId: event.detail.imageId, 
+        currentImageId: image?.id,
+        match: image && event.detail.imageId === image.id 
+      })
+      
+      if (image && event.detail.imageId === image.id) {
+        console.log('Auto enhance event matches current image, triggering...')
+        handleAutoEnhance()
+      } else {
+        console.log('Auto enhance event ignored - no match or no image')
+      }
+    }
+
+    console.log('Setting up auto enhance event listener for image:', image?.id)
+    document.addEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
+    return () => {
+      console.log('Cleaning up auto enhance event listener for image:', image?.id)
+      document.removeEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
+    }
+  }, [image, handleAutoEnhance])
+
+  // Clear status messages when image changes
+  useEffect(() => {
+    processingState.clearMessages()
+  }, [image?.id, processingState])
+
+  const handleReset = () => {
+    onAdjustmentsChange(resetAdjustments())
+    processingState.clearMessages()
+    onPresetChange?.(null)
   }
 
   const handlePresetApply = (presetName: string) => {
     const presetAdjustments = applyPreset(presetName)
     onAdjustmentsChange(presetAdjustments)
     onPresetChange?.(presetName)
-    setEnhanceResult(`Applied ${presetName} preset`)
     
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    // Set new timeout and store reference
-    timeoutRef.current = setTimeout(() => {
-      setEnhanceResult(null)
-      timeoutRef.current = null
-    }, 2000)
+    const message = formatPresetMessage(presetName)
+    processingState.setSuccess(`${message.title}: ${message.message}`)
   }
 
   const updateAdjustment = (key: keyof ImageAdjustments, value: number) => {
@@ -265,7 +225,8 @@ export function AdjustmentPanel({
             <Sliders className="w-5 h-5 text-blue-400" />
             <h3 className="text-white font-medium">Adjustments</h3>
           </div>
-          <button
+          <IconButton
+            icon={X}
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -277,13 +238,11 @@ export function AdjustmentPanel({
                 onToggle()
               }
             }}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors 
-                       relative z-10 cursor-pointer"
-            title="Close"
-            type="button"
-          >
-            <X className="w-4 h-4 pointer-events-none" />
-          </button>
+            variant="ghost"
+            size="iconSm"
+            className="text-gray-400 hover:text-white hover:bg-gray-700 relative z-10"
+            tooltip="Close"
+          />
         </div>
 
         {/* Prominent Auto-Enhance Section */}
@@ -295,91 +254,48 @@ export function AdjustmentPanel({
             </div>
             <kbd className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded border border-gray-600">E</kbd>
           </div>
-          <button
-            onClick={handleAutoEnhance}
-            disabled={isProcessing || !image?.previewDataUrl}
-            className="w-full min-h-[44px] py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 
-                       disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg 
-                       transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-black"
-            aria-label="Auto enhance current image"
+          <LoadingButton
+            onClick={() => {
+              console.log('Auto enhance button clicked')
+              handleAutoEnhance()
+            }}
+            loading={processingState.isProcessing}
+            loadingText="Analyzing..."
+            disabled={!image?.previewDataUrl}
+            icon={Wand2}
+            variant="success"
+            fullWidth
+            className="min-h-[44px] font-medium transform hover:scale-[1.02] active:scale-[0.98] focus:ring-offset-black"
           >
-            {isProcessing ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 animate-spin border-2 border-white border-t-transparent rounded-full" />
-                <span>Analyzing...</span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-2">
-                <Wand2 className="w-5 h-5" />
-                <span>Auto Enhance</span>
-              </div>
-            )}
-          </button>
+            Auto Enhance
+          </LoadingButton>
         </div>
 
         {/* Reset Button */}
         <div className="flex justify-end mb-4">
-          <button
+          <Button
             onClick={handleReset}
             disabled={!hasAdjustments}
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 
-                       disabled:cursor-not-allowed hover:bg-gray-700 rounded transition-colors
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-black"
+            variant="ghost"
+            size="sm"
+            className="text-gray-400 hover:text-white focus:ring-offset-black"
             title="Reset All Adjustments"
-            aria-label="Reset all adjustments to default"
           >
-            <div className="flex items-center gap-1.5">
-              <RotateCcw className="w-4 h-4" />
-              <span>Reset</span>
-            </div>
-          </button>
+            <RotateCcw className="w-4 h-4 mr-1.5" />
+            <span>Reset</span>
+          </Button>
         </div>
 
         {/* Status Message */}
-        {enhanceResult && (
-          <div className="mb-4 p-3 rounded-lg border transition-all duration-300 animate-in slide-in-from-top-2">
-            {enhanceResult.includes('confidence') ? (
-              <div className="bg-green-900/50 border-green-700">
-                <div className="flex items-center gap-2 mb-1">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <p className="text-sm text-green-200 font-medium">Auto-Enhancement Applied</p>
-                </div>
-                <p className="text-xs text-green-300">{enhanceResult}</p>
-                <p className="text-xs text-green-400 mt-1">✓ Adjustments saved to this image</p>
-              </div>
-            ) : enhanceResult.includes('preset') ? (
-              <div className="bg-purple-900/50 border-purple-700">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <p className="text-sm text-purple-200">{enhanceResult}</p>
-                </div>
-                <p className="text-xs text-purple-300 mt-1">✓ Style applied to this image only</p>
-              </div>
-            ) : enhanceResult.includes('failed') ? (
-              <div className="bg-red-900/50 border-red-700">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-400" />
-                  <p className="text-sm text-red-200">Enhancement Failed</p>
-                </div>
-                <p className="text-xs text-red-300 mt-1">Try adjusting manually or check image quality</p>
-              </div>
-            ) : enhanceResult.includes('No significant') ? (
-              <div className="bg-amber-900/50 border-amber-700">
-                <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-amber-400" />
-                  <p className="text-sm text-amber-200">No Enhancement Needed</p>
-                </div>
-                <p className="text-xs text-amber-300 mt-1">Image appears well-exposed already</p>
-              </div>
-            ) : (
-              <div className="bg-blue-900/50 border-blue-700">
-                <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-blue-400" />
-                  <p className="text-sm text-blue-200">{enhanceResult}</p>
-                </div>
-              </div>
-            )}
+        {(processingState.result || processingState.error) && (
+          <div className="mb-4">
+            <StatusMessageComponent
+              message={{
+                type: processingState.error ? 'error' : 'success',
+                message: processingState.result || processingState.error || '',
+                details: processingState.result ? 'Adjustments saved to this image' : undefined
+              }}
+            />
           </div>
         )}
 
@@ -391,18 +307,16 @@ export function AdjustmentPanel({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {Object.keys(getAutoEnhancePresets()).map(preset => (
-              <button
+              <Button
                 key={preset}
                 onClick={() => handlePresetApply(preset)}
-                className={`px-4 py-3 text-sm rounded-lg capitalize transition-all duration-200 
-                           transform hover:scale-[1.02] active:scale-[0.98] font-medium min-h-[44px]
-                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black group ${
-                  activePreset === preset
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-500 hover:bg-purple-700'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-600 hover:border-gray-500 focus:ring-gray-500'
+                variant={activePreset === preset ? 'default' : 'outline'}
+                className={`min-h-[44px] font-medium capitalize transform hover:scale-[1.02] active:scale-[0.98] focus:ring-offset-black ${
+                  activePreset === preset 
+                    ? 'bg-purple-600 hover:bg-purple-700 border-purple-500 shadow-lg shadow-purple-500/25' 
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-gray-600 hover:border-gray-500'
                 }`}
                 title={PRESET_DESCRIPTIONS[preset as keyof typeof PRESET_DESCRIPTIONS] || `Apply ${preset} preset`}
-                aria-label={`Apply ${preset.replace(/([A-Z])/g, ' $1').toLowerCase()} preset: ${PRESET_DESCRIPTIONS[preset as keyof typeof PRESET_DESCRIPTIONS]}`}
               >
                 <div className="flex items-center justify-center gap-2">
                   {activePreset === preset && (
@@ -410,7 +324,7 @@ export function AdjustmentPanel({
                   )}
                   <span>{preset.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         </div>

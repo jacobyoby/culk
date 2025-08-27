@@ -13,6 +13,8 @@ import {
   Settings
 } from 'lucide-react'
 import { ViewMode } from '@/lib/types'
+import { Button, IconButton } from '@/components/ui/button'
+import { Dropdown, DropdownOption } from '@/components/ui/dropdown'
 
 interface ToolbarProps {
   viewMode: ViewMode
@@ -43,9 +45,6 @@ export function Toolbar({
   onOpenSettings,
   className = ''
 }: ToolbarProps) {
-  const [showFilters, setShowFilters] = useState(false)
-  const [showSorts, setShowSorts] = useState(false)
-  
   const viewModes = [
     { id: 'filmstrip', icon: Grid3X3, label: 'Filmstrip' },
     { id: 'loupe', icon: Maximize2, label: 'Loupe' },
@@ -53,7 +52,7 @@ export function Toolbar({
     { id: 'survey', icon: LayoutGrid, label: 'Survey' }
   ] as const
   
-  const filters = [
+  const filters: DropdownOption[] = [
     { id: 'all', label: 'All Images' },
     { id: 'picks', label: 'Picks Only' },
     { id: 'rejects', label: 'Rejects Only' },
@@ -62,7 +61,7 @@ export function Toolbar({
     { id: 'eyes-closed', label: 'Eyes Closed' }
   ]
   
-  const sorts = [
+  const sorts: DropdownOption[] = [
     { id: 'capture-time', label: 'Capture Time' },
     { id: 'import-time', label: 'Import Time' },
     { id: 'rating', label: 'Rating' },
@@ -75,120 +74,74 @@ export function Toolbar({
         <div className="flex items-center gap-4">
           <div className="flex bg-muted rounded-lg p-1">
             {viewModes.map(({ id, icon: Icon, label }) => (
-              <button
+              <IconButton
                 key={id}
+                icon={Icon}
                 onClick={() => onViewModeChange(id as ViewMode)}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-background'
-                }`}
-                title={label}
-              >
-                <Icon className="w-4 h-4" />
-              </button>
+                active={viewMode === id}
+                variant={viewMode === id ? 'default' : 'ghost'}
+                tooltip={label}
+                className="rounded-md"
+              />
             ))}
           </div>
           
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                filterMode !== 'all'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted hover:bg-background'
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-              <span className="text-sm">
-                {filters.find(f => f.id === filterMode)?.label || 'Filter'}
-              </span>
-            </button>
-            
-            {showFilters && (
-              <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-10 min-w-48">
-                {filters.map(filter => (
-                  <button
-                    key={filter.id}
-                    onClick={() => {
-                      onFilterModeChange(filter.id)
-                      setShowFilters(false)
-                    }}
-                    className={`w-full text-left px-3 py-2 hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                      filterMode === filter.id ? 'bg-muted' : ''
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Dropdown
+            options={filters}
+            value={filterMode}
+            onValueChange={onFilterModeChange}
+            badge={filterMode !== 'all'}
+            trigger={
+              <Button
+                variant={filterMode !== 'all' ? 'default' : 'muted'}
+                className="flex items-center gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                <span className="text-sm">
+                  {filters.find(f => f.id === filterMode)?.label || 'Filter'}
+                </span>
+              </Button>
+            }
+          />
           
-          <div className="relative">
-            <button
-              onClick={() => setShowSorts(!showSorts)}
-              className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-background rounded-lg transition-colors"
-            >
-              <SortAsc className="w-4 h-4" />
-              <span className="text-sm">
-                {sorts.find(s => s.id === sortMode)?.label || 'Sort'}
-              </span>
-            </button>
-            
-            {showSorts && (
-              <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-10 min-w-48">
-                {sorts.map(sort => (
-                  <button
-                    key={sort.id}
-                    onClick={() => {
-                      onSortModeChange(sort.id)
-                      setShowSorts(false)
-                    }}
-                    className={`w-full text-left px-3 py-2 hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                      sortMode === sort.id ? 'bg-muted' : ''
-                    }`}
-                  >
-                    {sort.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Dropdown
+            options={sorts}
+            value={sortMode}
+            onValueChange={onSortModeChange}
+            trigger={
+              <Button variant="muted" className="flex items-center gap-2">
+                <SortAsc className="w-4 h-4" />
+                <span className="text-sm">
+                  {sorts.find(s => s.id === sortMode)?.label || 'Sort'}
+                </span>
+              </Button>
+            }
+          />
         </div>
         
         <div className="flex items-center gap-2">
-          <button
+          <IconButton
+            icon={Eye}
             onClick={onToggleFaceBoxes}
-            className={`p-2 rounded-lg transition-colors ${
-              showFaceBoxes
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-background'
-            }`}
-            title="Toggle face detection boxes"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
+            active={showFaceBoxes}
+            variant="muted"
+            tooltip="Toggle face detection boxes"
+          />
           
-          <button
+          <IconButton
+            icon={Info}
             onClick={onToggleMetadata}
-            className={`p-2 rounded-lg transition-colors ${
-              showMetadata
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted hover:bg-background'
-            }`}
-            title="Toggle metadata display"
-          >
-            <Info className="w-4 h-4" />
-          </button>
+            active={showMetadata}
+            variant="muted"
+            tooltip="Toggle metadata display"
+          />
           
-          <button
+          <IconButton
+            icon={Settings}
             onClick={onOpenSettings}
-            className="p-2 bg-muted hover:bg-background rounded-lg transition-colors"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+            variant="muted"
+            tooltip="Settings"
+          />
         </div>
       </div>
     </div>

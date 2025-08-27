@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Star, ThumbsUp, ThumbsDown, Eye, EyeOff, AlertCircle, Crop, Settings2, Grid3X3 } from 'lucide-react'
 import { ImageRec, ThumbnailSize } from '@/lib/types'
 import { RatingControls } from './rating-controls'
+import { Button } from '@/components/ui/button'
+import { Dropdown, DropdownOption } from '@/components/ui/dropdown'
+import { getFaceDetectionStatus } from '@/lib/utils/face-detection'
 
 interface FilmstripProps {
   images: ImageRec[]
@@ -72,9 +75,12 @@ export function Filmstrip({
     if (image.flag === 'pick') return <ThumbsUp className="w-3 h-3 text-green-400" />
     if (image.flag === 'reject') return <ThumbsDown className="w-3 h-3 text-red-400" />
     if (image.blurScore && image.blurScore > 100) return <AlertCircle className="w-3 h-3 text-orange-400" />
-    if (image.faces?.some(f => f.eyeState?.left === 'closed' || f.eyeState?.right === 'closed')) {
+    
+    const faceStatus = getFaceDetectionStatus(image)
+    if (faceStatus.hasClosedEyes) {
       return <EyeOff className="w-3 h-3 text-yellow-400" />
     }
+    
     if (image.autoCropRegion && image.autoCropRegion.confidence > 0.7) {
       return <Crop className="w-3 h-3 text-blue-400" />
     }
@@ -96,35 +102,22 @@ export function Filmstrip({
         </div>
         
         {onThumbnailSizeChange && (
-          <div className="relative" ref={selectorRef}>
-            <button
-              onClick={() => setShowSizeSelector(!showSizeSelector)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors"
-              title="Thumbnail Size"
-            >
-              <Settings2 className="w-4 h-4" />
-              {currentSize.label}
-            </button>
-            
-            {showSizeSelector && (
-              <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-10 min-w-36">
-                {(Object.keys(THUMBNAIL_SIZES) as ThumbnailSize[]).map(size => (
-                  <button
-                    key={size}
-                    onClick={() => {
-                      onThumbnailSizeChange(size)
-                      setShowSizeSelector(false)
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                      size === thumbnailSize ? 'bg-muted font-medium' : ''
-                    }`}
-                  >
-                    {THUMBNAIL_SIZES[size].label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Dropdown
+            options={(Object.keys(THUMBNAIL_SIZES) as ThumbnailSize[]).map(size => ({
+              id: size,
+              label: THUMBNAIL_SIZES[size].label,
+              icon: Settings2
+            }))}
+            value={thumbnailSize}
+            onValueChange={(size) => onThumbnailSizeChange(size as ThumbnailSize)}
+            position="right"
+            trigger={
+              <Button variant="muted" size="sm" className="flex items-center gap-2">
+                <Settings2 className="w-4 h-4" />
+                {currentSize.label}
+              </Button>
+            }
+          />
         )}
       </div>
       
