@@ -7,6 +7,7 @@ import { ImageRec, ImageAdjustments } from '@/lib/types'
 import { getImageOrientation } from '@/lib/utils/image'
 import { adjustmentsToCSSFilter, getDefaultAdjustments } from '@/lib/utils/adjustments'
 import { useImageAdjustments } from '@/lib/contexts/image-adjustments-context'
+import { formatAperture, formatFocalLength, formatISO, formatExposureTime } from '@/lib/utils/exif'
 import { CropTool } from './crop-tool'
 import { AdjustmentPanel } from './adjustment-panel'
 import { useImageActions } from '@/lib/store/hooks'
@@ -280,10 +281,10 @@ export function ImageViewer({
           {image.metadata.model && <p>{image.metadata.model}</p>}
           {image.metadata.lens && <p>{image.metadata.lens}</p>}
           <div className="flex gap-2 mt-1">
-            {image.metadata.focalLength && <span>{image.metadata.focalLength}mm</span>}
-            {image.metadata.aperture && <span>f/{image.metadata.aperture}</span>}
-            {image.metadata.shutterSpeed && <span>{image.metadata.shutterSpeed}</span>}
-            {image.metadata.iso && <span>ISO {image.metadata.iso}</span>}
+            {image.metadata.focalLength && <span>{formatFocalLength(image.metadata.focalLength)}</span>}
+            {image.metadata.aperture && <span>{formatAperture(image.metadata.aperture)}</span>}
+            {image.metadata.shutterSpeed && <span>{formatExposureTime(image.metadata.shutterSpeed)}</span>}
+            {image.metadata.iso && <span>{formatISO(image.metadata.iso)}</span>}
           </div>
         </div>
       )}
