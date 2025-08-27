@@ -75,6 +75,22 @@ const nextConfig = {
       type: 'asset/resource',
     })
 
+    // ONNX Runtime Web compatibility
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'onnxruntime-node': 'onnxruntime-web',
+    }
+
+    // Ignore Node.js modules in ONNX Runtime
+    config.externals = config.externals || []
+    if (!isServer) {
+      config.externals.push({
+        'module': 'commonjs module',
+        'node:fs': 'commonjs node:fs',
+        'node:os': 'commonjs node:os',
+        'node:path': 'commonjs node:path',
+      })
+    }
     
     return config
   },

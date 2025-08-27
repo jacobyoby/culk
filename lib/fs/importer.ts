@@ -2,6 +2,8 @@ import { db } from '../store/db'
 import { ImageRec, ImportSession, ImageMetadata } from '../types'
 import { 
   selectFolder, 
+  selectFiles,
+  selectSingleFile,
   walkDirectory, 
   isImageFile, 
   getFileMetadata,
@@ -11,6 +13,7 @@ import { extractMetadata } from '../utils/exif'
 import { generateThumbnail } from '../utils/image'
 import { detectAutoCropRegion } from '../utils/crop'
 import { rawManager } from '../raw/manager'
+import { faceDetectionWorkerManager } from '../ml/face-detection-worker-manager'
 
 export interface ImportProgress {
   total: number
@@ -24,6 +27,7 @@ export interface ImportOptions {
   generateThumbnails?: boolean
   extractExif?: boolean
   detectAutoCrop?: boolean
+  detectFaces?: boolean
   maxConcurrent?: number
   onProgress?: (progress: ImportProgress) => void
 }
@@ -31,11 +35,26 @@ export interface ImportOptions {
 export class ImageImporter {
   private abortController: AbortController | null = null
   
+  async importFiles(options: ImportOptions = {}): Promise<ImportSession | null> {
+    const fileHandles = await selectFiles()
+    if (!fileHandles || fileHandles.length === 0) return null
+
+    return this.processFileHandles(fileHandles, 'Selected Files', options)
+  }
+
+  async importSingleFile(options: ImportOptions = {}): Promise<ImportSession | null> {
+    const fileHandle = await selectSingleFile()
+    if (!fileHandle) return null
+
+    return this.processFileHandles([fileHandle], 'Single File', options)
+  }
+
   async importFolder(options: ImportOptions = {}): Promise<ImportSession | null> {
     const {
       generateThumbnails = true,
       extractExif = true,
       detectAutoCrop = true,
+      detectFaces = true,
       maxConcurrent = 4,
       onProgress
     } = options
@@ -88,7 +107,7 @@ export class ImageImporter {
           queue,
           session,
           progress,
-          { generateThumbnails, extractExif, detectAutoCrop },
+          { generateThumbnails, extractExif, detectAutoCrop, detectFaces },
           onProgress
         ))
       }
@@ -113,12 +132,101 @@ export class ImageImporter {
       throw error
     }
   }
+
+  private async processFileHandles(
+    fileHandles: FileSystemFileHandle[],
+    sourceName: string,
+    options: ImportOptions
+  ): Promise<ImportSession | null> {
+    const {
+      generateThumbnails = true,
+      extractExif = true,
+      detectAutoCrop = true,
+      detectFaces = true,
+      maxConcurrent = 4,
+      onProgress
+    } = options
+
+    this.abortController = new AbortController()
+
+    const session: ImportSession = {
+      id: crypto.randomUUID(),
+      folderName: sourceName,
+      startedAt: new Date(),
+      totalFiles: 0,
+      processedFiles: 0,
+      failedFiles: 0,
+      status: 'processing',
+      errors: []
+    }
+
+    await db.sessions.add(session)
+    await db.initProject()
+
+    try {
+      // Filter for image files and create file objects
+      const files: Array<{ handle: FileSystemFileHandle; path: string }> = []
+      
+      for (const handle of fileHandles) {
+        if (this.abortController.signal.aborted) break
+        if (isImageFile(handle.name)) {
+          files.push({
+            handle,
+            path: handle.name // For files, path is just the filename
+          })
+        }
+      }
+
+      session.totalFiles = files.length
+      await db.sessions.update(session.id, { totalFiles: files.length })
+
+      const progress: ImportProgress = {
+        total: files.length,
+        processed: 0,
+        failed: 0,
+        currentFile: '',
+        errors: []
+      }
+
+      const queue = [...files]
+      const workers: Promise<void>[] = []
+
+      for (let i = 0; i < maxConcurrent; i++) {
+        workers.push(this.processQueue(
+          queue,
+          session,
+          progress,
+          { generateThumbnails, extractExif, detectAutoCrop, detectFaces },
+          onProgress
+        ))
+      }
+
+      await Promise.all(workers)
+
+      session.completedAt = new Date()
+      session.status = progress.failed === files.length ? 'failed' : 'completed'
+      session.processedFiles = progress.processed
+      session.failedFiles = progress.failed
+      session.errors = progress.errors
+
+      await db.sessions.update(session.id, session)
+      await db.updateProjectStats()
+
+      return session
+
+    } catch (error) {
+      session.status = 'failed'
+      session.completedAt = new Date()
+      await db.sessions.update(session.id, session)
+      throw error
+    }
+  }
   
   private async processQueue(
     queue: Array<{ handle: FileSystemFileHandle; path: string }>,
     session: ImportSession,
     progress: ImportProgress,
-    options: { generateThumbnails: boolean; extractExif: boolean; detectAutoCrop: boolean },
+    options: { generateThumbnails: boolean; extractExif: boolean; detectAutoCrop: boolean; detectFaces: boolean },
     onProgress?: (progress: ImportProgress) => void
   ): Promise<void> {
     while (queue.length > 0) {
@@ -153,7 +261,7 @@ export class ImageImporter {
   private async processFile(
     file: { handle: FileSystemFileHandle; path: string },
     sessionId: string,
-    options: { generateThumbnails: boolean; extractExif: boolean; detectAutoCrop: boolean }
+    options: { generateThumbnails: boolean; extractExif: boolean; detectAutoCrop: boolean; detectFaces: boolean }
   ): Promise<void> {
     const fileData = await getFileMetadata(file.handle)
     const fileObj = await file.handle.getFile()
@@ -162,6 +270,7 @@ export class ImageImporter {
     let thumbnailDataUrl: string | undefined
     let previewDataUrl: string | undefined
     let autoCropRegion: any = undefined
+    let detectedFaces: any = undefined
     
     if (options.extractExif) {
       try {
@@ -261,6 +370,69 @@ export class ImageImporter {
       }
     }
     
+    // Detect faces if enabled and thumbnails were generated (client-side only)
+    console.log('Face detection check:', {
+      detectFacesEnabled: options.detectFaces,
+      hasThumbnail: !!thumbnailDataUrl,
+      isClient: typeof window !== 'undefined',
+      fileName: fileData.name
+    })
+    
+    if (options.detectFaces && thumbnailDataUrl && typeof window !== 'undefined') {
+      console.log('Starting face detection for', fileData.name)
+      try {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          const img = new Image()
+          await new Promise<void>((resolve, reject) => {
+            img.onload = async () => {
+              canvas.width = img.width
+              canvas.height = img.height
+              ctx.drawImage(img, 0, 0)
+              
+              const imageData = ctx.getImageData(0, 0, img.width, img.height)
+              
+              try {
+                // Initialize face detection worker if not already done
+                if (!faceDetectionWorkerManager.isAvailable()) {
+                  await faceDetectionWorkerManager.initialize()
+                }
+                
+                const faceResult = await faceDetectionWorkerManager.detectFaces(imageData, {
+                  confidenceThreshold: 0.5, // Lowered threshold for better sensitivity
+                  includeEyeState: true,
+                  calculateFocusScore: true
+                })
+                
+                detectedFaces = faceResult.faces
+                console.log(`Face detection for ${fileData.name}:`, {
+                  facesDetected: detectedFaces.length,
+                  imageSize: `${imageData.width}x${imageData.height}`,
+                  processingTime: faceResult.processingTime,
+                  detector: faceResult.detectorUsed,
+                  faces: detectedFaces.map(f => ({
+                    confidence: f.confidence,
+                    bbox: f.bbox,
+                    eyeState: f.eyeState
+                  }))
+                })
+              } catch (faceError) {
+                console.error('Face detection failed for', fileData.name, ':', faceError)
+                console.error('Face detection error stack:', faceError instanceof Error ? faceError.stack : 'No stack trace')
+              }
+              
+              resolve()
+            }
+            img.onerror = reject
+            img.src = thumbnailDataUrl!
+          })
+        }
+      } catch (error) {
+        console.warn('Failed to detect faces:', error)
+      }
+    }
+    
     const imageRec: ImageRec = {
       id: crypto.randomUUID(),
       fileName: fileData.name,
@@ -272,6 +444,7 @@ export class ImageImporter {
       thumbnailDataUrl,
       previewDataUrl,
       autoCropRegion,
+      faces: detectedFaces || [],
       rating: 0,
       flag: null,
       createdAt: new Date(),

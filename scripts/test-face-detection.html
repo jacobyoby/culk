@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Detection Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .container { 
+            display: flex; 
+            gap: 20px; 
+            align-items: flex-start; 
+        }
+        .image-section { 
+            flex: 1; 
+        }
+        .results-section { 
+            flex: 1; 
+            background: #f5f5f5; 
+            padding: 20px; 
+            border-radius: 8px; 
+        }
+        canvas { 
+            border: 1px solid #ccc; 
+            max-width: 100%; 
+        }
+        .face-box {
+            position: absolute;
+            border: 2px solid #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        .face-info {
+            background: white;
+            padding: 5px;
+            border-radius: 4px;
+            margin: 5px 0;
+            border-left: 4px solid #10b981;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .error {
+            color: #ef4444;
+            background: #fef2f2;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #10b981;
+            background: #f0fdf4;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Face Detection Test</h1>
+    <p>This tool tests the face detection functionality using the same algorithms as the main app.</p>
+    
+    <div class="container">
+        <div class="image-section">
+            <input type="file" id="imageInput" accept="image/*" />
+            <div style="position: relative; display: inline-block;">
+                <canvas id="canvas" width="400" height="300"></canvas>
+                <div id="faceOverlay"></div>
+            </div>
+        </div>
+        
+        <div class="results-section">
+            <h3>Detection Results</h3>
+            <button onclick="testDetection()">Test Detection</button>
+            <button onclick="testWorkerDetection()">Test Worker Detection</button>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const imageInput = document.getElementById('imageInput');
+        let currentImageData = null;
+
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // Resize canvas to fit image while maintaining aspect ratio
+                        const maxWidth = 400;
+                        const maxHeight = 300;
+                        let { width, height } = img;
+                        
+                        if (width > maxWidth || height > maxHeight) {
+                            const ratio = Math.min(maxWidth / width, maxHeight / height);
+                            width *= ratio;
+                            height *= ratio;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        ctx.drawImage(img, 0, 0, width, height);
+                        currentImageData = ctx.getImageData(0, 0, width, height);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Fallback face detection (same as worker)
+        function detectFacesBySkinTone(imageData) {
+            const { width, height, data } = imageData;
+            const skinPixels = [];
+
+            // Find skin-tone pixels
+            for (let y = 0; y < height; y += 2) { // Skip for performance
+                for (let x = 0; x < width; x += 2) {
+                    const idx = (y * width + x) * 4;
+                    const r = data[idx];
+                    const g = data[idx + 1];
+                    const b = data[idx + 2];
+
+                    if (isSkinTone(r, g, b)) {
+                        skinPixels.push({ x, y });
+                    }
+                }
+            }
+
+            if (skinPixels.length < 50) {
+                return [];
+            }
+
+            // Simple clustering - create one face region from skin pixels
+            const xs = skinPixels.map(p => p.x);
+            const ys = skinPixels.map(p => p.y);
+            
+            let minX = xs[0], maxX = xs[0], minY = ys[0], maxY = ys[0];
+            for (let i = 1; i < xs.length; i++) {
+                if (xs[i] < minX) minX = xs[i];
+                if (xs[i] > maxX) maxX = xs[i];
+            }
+            for (let i = 1; i < ys.length; i++) {
+                if (ys[i] < minY) minY = ys[i];
+                if (ys[i] > maxY) maxY = ys[i];
+            }
+
+            // Add padding
+            const padding = 0.1;
+            const faceWidth = maxX - minX;
+            const faceHeight = maxY - minY;
+            
+            if (faceWidth < 20 || faceHeight < 20) {
+                return [];
+            }
+
+            const paddedMinX = Math.max(0, minX - faceWidth * padding);
+            const paddedMinY = Math.max(0, minY - faceHeight * padding);
+            const paddedMaxX = Math.min(width, maxX + faceWidth * padding);
+            const paddedMaxY = Math.min(height, maxY + faceHeight * padding);
+
+            return [{
+                id: `face-test-${Date.now()}`,
+                bbox: {
+                    x: (paddedMinX / width) * 100,
+                    y: (paddedMinY / height) * 100,
+                    width: ((paddedMaxX - paddedMinX) / width) * 100,
+                    height: ((paddedMaxY - paddedMinY) / height) * 100
+                },
+                confidence: Math.min(0.7, skinPixels.length / 500),
+                eyeState: { left: 'unknown', right: 'unknown' },
+                focusScore: 0
+            }];
+        }
+
+        function isSkinTone(r, g, b) {
+            // Multiple skin tone conditions
+            const conditions = [
+                // Condition 1: Basic skin tone range
+                r > 95 && g > 40 && b > 20 &&
+                Math.max(r, g, b) - Math.min(r, g, b) > 15 &&
+                Math.abs(r - g) > 15 && r > g && r > b,
+                
+                // Condition 2: Lighter skin tones
+                r > 220 && g > 210 && b > 170 &&
+                Math.abs(r - g) <= 15 && r >= g && g >= b,
+                
+                // Condition 3: Darker skin tones
+                r > 50 && g > 30 && b > 15 &&
+                r > g && g >= b && (r - b) > 10
+            ];
+
+            return conditions.some(condition => condition);
+        }
+
+        function drawFaceBoxes(faces) {
+            const overlay = document.getElementById('faceOverlay');
+            overlay.innerHTML = '';
+            overlay.style.position = 'absolute';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = canvas.width + 'px';
+            overlay.style.height = canvas.height + 'px';
+            overlay.style.pointerEvents = 'none';
+
+            faces.forEach(face => {
+                const box = document.createElement('div');
+                box.className = 'face-box';
+                box.style.left = `${face.bbox.x}%`;
+                box.style.top = `${face.bbox.y}%`;
+                box.style.width = `${face.bbox.width}%`;
+                box.style.height = `${face.bbox.height}%`;
+                overlay.appendChild(box);
+            });
+        }
+
+        function displayResults(faces, processingTime, method) {
+            const results = document.getElementById('results');
+            
+            if (faces.length === 0) {
+                results.innerHTML = `
+                    <div class="error">
+                        <strong>No faces detected</strong><br>
+                        Processing time: ${processingTime.toFixed(2)}ms<br>
+                        Method: ${method}<br>
+                        Try an image with clear faces and good lighting.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="success">
+                    <strong>Found ${faces.length} face(s)</strong><br>
+                    Processing time: ${processingTime.toFixed(2)}ms<br>
+                    Method: ${method}
+                </div>
+            `;
+
+            faces.forEach((face, index) => {
+                html += `
+                    <div class="face-info">
+                        <strong>Face ${index + 1}</strong><br>
+                        Confidence: ${(face.confidence * 100).toFixed(1)}%<br>
+                        Position: ${face.bbox.x.toFixed(1)}%, ${face.bbox.y.toFixed(1)}%<br>
+                        Size: ${face.bbox.width.toFixed(1)}% × ${face.bbox.height.toFixed(1)}%<br>
+                        Eyes: ${face.eyeState.left} / ${face.eyeState.right}
+                    </div>
+                `;
+            });
+
+            results.innerHTML = html;
+            drawFaceBoxes(faces);
+        }
+
+        function testDetection() {
+            if (!currentImageData) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const startTime = performance.now();
+            const faces = detectFacesBySkinTone(currentImageData);
+            const processingTime = performance.now() - startTime;
+            
+            displayResults(faces, processingTime, 'Direct skin tone detection');
+        }
+
+        async function testWorkerDetection() {
+            if (!currentImageData) {
+                alert('Please select an image first');
+                return;
+            }
+
+            try {
+                const startTime = performance.now();
+                
+                // Test worker if available
+                const worker = new Worker('/workers/face-detection-worker.js');
+                
+                const result = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        worker.terminate();
+                        reject(new Error('Worker timeout'));
+                    }, 10000);
+                    
+                    worker.onmessage = (event) => {
+                        clearTimeout(timeout);
+                        worker.terminate();
+                        resolve(event.data);
+                    };
+                    
+                    worker.onerror = (error) => {
+                        clearTimeout(timeout);
+                        worker.terminate();
+                        reject(error);
+                    };
+                    
+                    worker.postMessage({
+                        id: 'test',
+                        type: 'detect_faces',
+                        payload: { imageData: currentImageData, options: {} }
+                    });
+                });
+
+                const processingTime = performance.now() - startTime;
+                
+                if (result.success && result.result) {
+                    displayResults(result.result.faces, processingTime, 'Web Worker');
+                } else {
+                    throw new Error(result.error || 'Worker detection failed');
+                }
+            } catch (error) {
+                console.error('Worker test failed:', error);
+                document.getElementById('results').innerHTML = `
+                    <div class="error">
+                        <strong>Worker detection failed</strong><br>
+                        Error: ${error.message}<br>
+                        Falling back to direct detection...
+                    </div>
+                `;
+                
+                // Fallback to direct detection
+                setTimeout(testDetection, 1000);
+            }
+        }
+
+        // Create a sample test image for demonstration
+        function createTestImage() {
+            ctx.fillStyle = '#f0c297'; // Skin tone color
+            ctx.fillRect(150, 100, 100, 120); // Face rectangle
+            
+            // Add some features
+            ctx.fillStyle = '#8B4513'; // Brown for hair
+            ctx.fillRect(140, 80, 120, 40);
+            
+            ctx.fillStyle = '#000'; // Black for eyes
+            ctx.fillRect(170, 130, 10, 10);
+            ctx.fillRect(210, 130, 10, 10);
+            
+            currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        // Initialize with test image
+        window.onload = function() {
+            createTestImage();
+        };
+    </script>
+</body>
+</html>

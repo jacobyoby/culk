@@ -76,6 +76,19 @@ function calculateVariance(data: number[]): number {
   return variance
 }
 
+export function calculateLaplacianVariance(imageData: ImageData): number {
+  const { data, width, height } = imageData
+  
+  // Convert to grayscale
+  const grayscale = toGrayscale(data)
+  
+  // Apply Laplacian operator
+  const laplacian = applyLaplacian(grayscale, width, height)
+  
+  // Calculate variance
+  return calculateVariance(laplacian)
+}
+
 export function analyzeRegionFocus(
   imageData: ImageData,
   x: number,
