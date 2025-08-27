@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: ai-cull-test
+    environment:
+      - NODE_ENV=test
+      - CI=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: pnpm test:all
+    networks:
+      - test-network
+
+  test-e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: ai-cull-e2e
+    environment:
+      - NODE_ENV=test
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    volumes:
+      - ./tests:/app/tests
+      - ./playwright-report:/app/playwright-report
+    command: pnpm test:e2e:headless
+    networks:
+      - test-network
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: ai-cull-app-test
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
