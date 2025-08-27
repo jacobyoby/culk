@@ -131,6 +131,17 @@ export interface ImportSession {
 
 export type ViewMode = 'filmstrip' | 'loupe' | 'compare' | 'survey'
 
+export interface ImageAdjustments {
+  brightness: number // -100 to 100
+  contrast: number   // -100 to 100  
+  saturation: number // -100 to 100
+  highlights: number // -100 to 100
+  shadows: number   // -100 to 100
+  vibrance: number  // -100 to 100
+}
+
+export type ThumbnailSize = 'small' | 'medium' | 'large' | 'xlarge'
+
 export interface UIState {
   viewMode: ViewMode
   selectedImageIds: string[]
@@ -142,9 +153,12 @@ export interface UIState {
   showMetadata: boolean
   showHistogram: boolean
   showCropTool: boolean
+  showAdjustments: boolean
+  thumbnailSize: ThumbnailSize
   compareImages: string[]
   surveyImages: string[]
   filterMode?: 'all' | 'picks' | 'rejects' | 'unrated' | 'blurry' | 'eyes-closed'
   sortMode: 'capture-time' | 'import-time' | 'rating' | 'name'
   sortDirection: 'asc' | 'desc'
+  adjustments: ImageAdjustments
 }

@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ZoomIn, ZoomOut, RotateCw, Maximize2, Crop, Check } from 'lucide-react'
-import { ImageRec } from '@/lib/types'
+import { ZoomIn, ZoomOut, RotateCw, Maximize2, Crop, Check, Sliders } from 'lucide-react'
+import { ImageRec, ImageAdjustments } from '@/lib/types'
 import { getImageOrientation } from '@/lib/utils/image'
+import { adjustmentsToCSSFilter, getDefaultAdjustments } from '@/lib/utils/adjustments'
 import { CropTool } from './crop-tool'
+import { AdjustmentPanel } from './adjustment-panel'
 import { useImageActions } from '@/lib/store/hooks'
 
 interface ImageViewerProps {
@@ -13,7 +15,9 @@ interface ImageViewerProps {
   showMetadata?: boolean
   showFaceBoxes?: boolean
   showCropTool?: boolean
+  showAdjustments?: boolean
   onToggleCropTool?: () => void
+  onToggleAdjustments?: () => void
   className?: string
 }
 
@@ -22,7 +26,9 @@ export function ImageViewer({
   showMetadata = false,
   showFaceBoxes = false,
   showCropTool = false,
+  showAdjustments = false,
   onToggleCropTool,
+  onToggleAdjustments,
   className = ''
 }: ImageViewerProps) {
   const [zoom, setZoom] = useState(1)
@@ -30,6 +36,7 @@ export function ImageViewer({
   const [rotation, setRotation] = useState(0)
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState(image.previewDataUrl)
   const [currentCropRegion, setCurrentCropRegion] = useState(image.autoCropRegion)
+  const [adjustments, setAdjustments] = useState<ImageAdjustments>(getDefaultAdjustments())
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
@@ -53,12 +60,14 @@ export function ImageViewer({
     }
   }, [currentPreviewUrl, image.previewDataUrl])
   
-  // Prevent page scroll when hovering over image
+  // Handle zoom on wheel, but only when hovering over the image
+  const [isHoveringImage, setIsHoveringImage] = useState(false)
+  
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    if (!isHoveringImage) return
     
     const handleNativeWheel = (e: WheelEvent) => {
+      // Only prevent scroll when actually hovering the image area
       e.preventDefault()
       e.stopPropagation()
       
@@ -72,23 +81,13 @@ export function ImageViewer({
       })
     }
     
-    // Prevent default scrolling behavior on the container
-    const handleTouchMove = (e: TouchEvent) => {
-      // Only prevent if we're zoomed in
-      if (zoom > 1) {
-        e.preventDefault()
-      }
-    }
-    
-    // Use passive: false to allow preventDefault
-    container.addEventListener('wheel', handleNativeWheel, { passive: false })
-    container.addEventListener('touchmove', handleTouchMove, { passive: false })
+    // Add listener to window to catch all wheel events when hovering
+    window.addEventListener('wheel', handleNativeWheel, { passive: false })
     
     return () => {
-      container.removeEventListener('wheel', handleNativeWheel)
-      container.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('wheel', handleNativeWheel)
     }
-  }, [zoom])
+  }, [isHoveringImage])
   
   
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -166,19 +165,25 @@ export function ImageViewer({
         >
           <Crop className="w-5 h-5 text-white" />
           {currentCropRegion && (
-            <Check className="w-3 h-3 text-green-400 absolute -top-1 -right-1" />
+            <Check className="w-3 h-3 text-green-400 absolute top-0 right-0 bg-black/50 rounded-full p-0.5" />
           )}
+        </button>
+        <button
+          onClick={onToggleAdjustments}
+          className={`p-2 ${Object.values(adjustments).some(val => val !== 0) ? 'bg-blue-600/50' : 'bg-black/50'} hover:bg-black/70 rounded-lg transition-colors`}
+          title="Adjustments"
+        >
+          <Sliders className="w-5 h-5 text-white" />
         </button>
       </div>
       
       <div
-        className="relative w-full h-full flex items-center justify-center cursor-move"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
+        className="relative w-full h-full flex items-center justify-center"
+        onMouseLeave={() => handleMouseUp()}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
       >
         <motion.div
+          className="cursor-move"
           animate={{
             scale: zoom,
             x: position.x,
@@ -187,12 +192,21 @@ export function ImageViewer({
           }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           style={{ transform: orientation.transform }}
+          onMouseEnter={() => setIsHoveringImage(true)}
+          onMouseLeave={() => {
+            setIsHoveringImage(false)
+            handleMouseUp()
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
         >
           {currentPreviewUrl ? (
             <img
               src={currentPreviewUrl}
               alt={image.fileName}
               className="max-w-full max-h-full object-contain"
+              style={{ filter: adjustmentsToCSSFilter(adjustments) }}
               draggable={false}
               key={currentPreviewUrl} // Force re-render when URL changes
             />
@@ -285,6 +299,24 @@ export function ImageViewer({
             console.log('Crop information saved to database')
           } catch (error) {
             console.error('Failed to save crop information:', error)
+          }
+        }}
+      />
+      
+      <AdjustmentPanel
+        adjustments={adjustments}
+        onAdjustmentsChange={setAdjustments}
+        isOpen={showAdjustments}
+        onToggle={() => {
+          console.log('AdjustmentPanel onToggle called')
+          onToggleAdjustments?.()
+        }}
+        onClose={() => {
+          console.log('AdjustmentPanel onClose called')
+          // For closing, we need to explicitly set showAdjustments to false
+          // Since we can't directly control parent state, we'll use the toggle if it's currently open
+          if (showAdjustments) {
+            onToggleAdjustments?.()
           }
         }}
       />

@@ -6,20 +6,26 @@ Local-first PWA for culling RAW/JPEG files with AI-powered features.
 
 ✅ **Completed Features:**
 - **Local File Import** - File System Access API for secure folder import
-- **PWA Support** - Installable app with offline capabilities
-- **Advanced Image Viewer** - Zoom, pan, rotate with smooth animations
+- **PWA Support** - Installable app with offline capabilities  
+- **Advanced Image Viewer** - Zoom, pan, rotate with smooth animations and scroll control
 - **Smart Culling Interface** - Filmstrip, loupe, compare, and survey views
-- **Rating & Flagging** - 5-star rating system with pick/reject flags
+- **Rating & Flagging** - 5-star rating system with thumbs up/down for pick/reject
+- **Image Adjustments** - Real-time brightness, contrast, saturation, highlights, shadows, and vibrance
 - **Auto-Grouping** - Perceptual hash + SSIM similarity detection
-- **Focus Detection** - Laplacian variance for blur/sharpness analysis
+- **Smart Crop Suggestions** - Edge detection, golden ratio, and face-aware cropping
+- **Face Detection** - BlazeFace ONNX models with eye state analysis and focus scoring
+- **Focus Detection** - Laplacian variance for blur/sharpness analysis  
 - **XMP Export** - Lightroom/Capture One compatible sidecar files
 - **Multiple Export Formats** - JSON, CSV, and XMP exports
-- **Docker Support** - Development and production containers
+- **Docker Support** - Development and production containers with health checks
+- **Comprehensive Testing** - Unit, integration, and acceptance test suites
 
-🚧 **In Development:**
-- **RAW Preview** - LibRaw WASM integration for fast RAW thumbnails
-- **Face Detection** - ONNX Runtime with eye state analysis
-- **Advanced Tests** - Comprehensive test suite
+✅ **Advanced Features:**
+- **Face-Aware Auto-Cropping** - Automatically suggests crops that include faces
+- **Eye State Detection** - Identifies closed eyes in portraits
+- **Real-time Image Filters** - CSS-based adjustments for professional editing feel
+- **Keyboard Shortcuts** - Full keyboard navigation for efficient culling
+- **Memory Management** - Efficient blob URL cleanup and resource management
 
 ## Quick Start
 
@@ -57,12 +63,14 @@ pnpm dev
 
 2. **Cull Images**
    - Use keyboard shortcuts for efficient culling:
-     - `←/→` - Navigate between images
-     - `1-5` - Rate images
-     - `P` - Mark as pick
-     - `X` - Mark as reject
+     - `←/→` - Navigate between images  
+     - `1-5` - Rate images (star rating)
+     - `P` - Mark as pick (thumbs up)
+     - `X` - Mark as reject (thumbs down) 
      - `F` - Toggle face detection boxes
      - `I` - Toggle metadata display
+     - `C` - Open crop tool
+     - `A` - Open adjustment panel
 
 3. **Auto-Group Similar Images**
    - Visit the Review page
@@ -76,30 +84,41 @@ pnpm dev
 
 ## Technology Stack
 
-- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS, Framer Motion
 - **Storage**: Dexie (IndexedDB) for local data persistence
-- **Image Processing**: Canvas API, Web Workers
-- **Similarity Detection**: Perceptual hashing, SSIM algorithm
-- **PWA**: Service workers, offline support
-- **Deployment**: Docker with multi-stage builds
+- **AI/ML**: ONNX Runtime Web, BlazeFace models for face detection
+- **Image Processing**: Canvas API, Web Workers, LibRaw WASM (planned)
+- **Similarity Detection**: Perceptual hashing (pHash), SSIM algorithm  
+- **Real-time Filters**: CSS filters with hardware acceleration
+- **PWA**: Service workers, offline support, installable
+- **Testing**: Vitest, Testing Library, Playwright
+- **Deployment**: Docker with multi-stage builds, health checks
 
 ## Architecture
 
 ```
 ├── app/                 # Next.js app router pages
 ├── components/          # Reusable UI components
+│   ├── adjustment-panel.tsx  # Real-time image adjustments
+│   ├── crop-tool.tsx         # Smart cropping interface
+│   ├── image-viewer.tsx      # Advanced image viewer with controls
+│   ├── rating-controls.tsx   # Star ratings and thumbs up/down
+│   └── face-*.tsx           # Face detection components
 ├── lib/
 │   ├── fs/             # File System Access API
-│   ├── store/          # Database and state management
-│   ├── similarity/     # Image similarity algorithms
+│   ├── store/          # Database and state management  
+│   ├── ml/             # Machine learning (BlazeFace, eye detection)
+│   ├── similarity/     # Image similarity algorithms (pHash, SSIM)
 │   ├── quality/        # Focus and blur detection
 │   ├── grouping/       # Auto-grouping logic
+│   ├── utils/          # Image adjustments, cropping, EXIF
 │   ├── xmp/            # XMP sidecar generation
-│   ├── export/         # Export functionality
-│   └── utils/          # Utility functions
+│   └── export/         # Export functionality
 ├── workers/            # Web Workers for heavy processing
-├── public/             # Static assets and PWA manifest
-└── tests/              # Test files
+├── public/
+│   ├── models/         # ONNX models for face detection
+│   └── manifest.webmanifest  # PWA configuration
+└── tests/              # Comprehensive test suite
 ```
 
 ## Docker Workflow
