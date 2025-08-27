@@ -75,4 +75,98 @@
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
   }
+  
+  /* Hide native PWA window controls */
+  body {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+}
+
+/* Hide browser window controls in PWA mode */
+@media (display-mode: standalone) {
+  html {
+    /* Try to hide the native close button */
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+  
+  /* Alternative approach - hide window decorations */
+  ::-webkit-window-controls-overlay {
+    display: none !important;
+  }
+  
+  /* Hide window controls on different browsers */
+  .window-controls-overlay {
+    display: none !important;
+  }
+}
+
+/* Aggressive targeting of window control buttons */
+.window-control,
+.window-controls,
+.titlebar-button,
+.titlebar-close,
+.close-button,
+[role="button"][aria-label*="Close"],
+[role="button"][aria-label*="close"],
+button[aria-label*="Close"],
+button[aria-label*="close"],
+.browser-window-controls,
+.pwa-window-controls {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Target red colored elements in the top area */
+div[style*="background-color: rgb(255, 0, 0)"],
+div[style*="background-color: red"],
+div[style*="background: rgb(255, 0, 0)"],
+div[style*="background: red"],
+.red-button,
+button[style*="background-color: rgb(255, 0, 0)"],
+button[style*="background-color: red"] {
+  display: none !important;
+}
+
+/* Chrome/Edge PWA window controls */
+::-webkit-appearance,
+::-webkit-window-controls {
+  display: none !important;
+}
+
+/* Firefox window controls */
+@-moz-document url-prefix() {
+  .window-controls {
+    display: none !important;
+  }
+}
+
+/* Very specific targeting for the red close button */
+div:last-child:has(> button[style*="background"]),
+button:last-child[style*="red"],
+button[style*="#ff0000"],
+button[style*="#FF0000"],
+button[style*="rgb(255,0,0)"],
+div[style*="position: fixed"][style*="top"][style*="right"],
+div[style*="position: absolute"][style*="top"][style*="right"]:has(button),
+.window-titlebar button:last-child,
+.titlebar button:last-child {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Target elements in the top right corner */
+*[style*="position: fixed"][style*="top"][style*="right"][style*="z-index"] {
+  display: none !important;
+}
+
+/* Hide any button with X content in top area */
+button:contains("×"),
+button:contains("✕"),
+button:contains("X") {
+  display: none !important;
 }

@@ -11,8 +11,8 @@ import {
   BarChart3, 
   Users, 
   Star,
-  Flag,
-  X,
+  ThumbsUp,
+  ThumbsDown,
   Home
 } from 'lucide-react'
 import { useImages, useGroups, useCurrentProject } from '@/lib/store/hooks'
@@ -159,7 +159,7 @@ export default function ReviewPage() {
                 <p className="text-2xl font-bold text-green-500">{stats.picks}</p>
                 <p className="text-sm text-muted-foreground">Picks</p>
               </div>
-              <Flag className="w-8 h-8 text-green-500" />
+              <ThumbsUp className="w-8 h-8 text-green-500" />
             </div>
           </div>
           
@@ -169,7 +169,7 @@ export default function ReviewPage() {
                 <p className="text-2xl font-bold text-red-500">{stats.rejects}</p>
                 <p className="text-sm text-muted-foreground">Rejects</p>
               </div>
-              <X className="w-8 h-8 text-red-500" />
+              <ThumbsDown className="w-8 h-8 text-red-500" />
             </div>
           </div>
         </div>

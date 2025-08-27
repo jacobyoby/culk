@@ -1,6 +1,6 @@
 'use client'
 
-import { Star, Flag, X } from 'lucide-react'
+import { Star, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { ImageRec } from '@/lib/types'
 import { db } from '@/lib/store/db'
 
@@ -17,8 +17,14 @@ export function RatingControls({ image, onUpdate, className = '' }: RatingContro
   }
   
   const handleFlag = async (flag: 'pick' | 'reject' | null) => {
-    await db.updateImageFlag(image.id, flag)
-    onUpdate?.()
+    console.log('handleFlag called with:', flag, 'for image:', image.id)
+    try {
+      await db.updateImageFlag(image.id, flag)
+      console.log('Flag updated successfully')
+      onUpdate?.()
+    } catch (error) {
+      console.error('Error updating flag:', error)
+    }
   }
   
   return (
@@ -46,27 +52,33 @@ export function RatingControls({ image, onUpdate, className = '' }: RatingContro
       
       <div className="flex gap-1">
         <button
-          onClick={() => handleFlag(image.flag === 'pick' ? null : 'pick')}
+          onClick={() => {
+            console.log('Thumbs up clicked, current flag:', image.flag)
+            handleFlag(image.flag === 'pick' ? null : 'pick')
+          }}
           className={`p-2 rounded transition-colors ${
             image.flag === 'pick'
               ? 'bg-green-600 text-white'
               : 'hover:bg-muted text-muted-foreground'
           }`}
-          title="Pick"
+          title="Pick (Thumbs Up)"
         >
-          <Flag className="w-4 h-4" />
+          <ThumbsUp className="w-4 h-4" />
         </button>
         
         <button
-          onClick={() => handleFlag(image.flag === 'reject' ? null : 'reject')}
+          onClick={() => {
+            console.log('Thumbs down clicked, current flag:', image.flag)
+            handleFlag(image.flag === 'reject' ? null : 'reject')
+          }}
           className={`p-2 rounded transition-colors ${
             image.flag === 'reject'
               ? 'bg-red-600 text-white'
               : 'hover:bg-muted text-muted-foreground'
           }`}
-          title="Reject"
+          title="Reject (Thumbs Down)"
         >
-          <X className="w-4 h-4" />
+          <ThumbsDown className="w-4 h-4" />
         </button>
       </div>
       

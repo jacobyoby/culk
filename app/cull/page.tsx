@@ -8,8 +8,10 @@ import { ImageViewer } from '@/components/image-viewer'
 import { Filmstrip } from '@/components/filmstrip'
 import { Toolbar } from '@/components/toolbar'
 import { RatingControls } from '@/components/rating-controls'
+import { WindowControls } from '@/components/window-controls'
 import { useImages, useFilteredImages } from '@/lib/store/hooks'
-import { ViewMode, UIState } from '@/lib/types'
+import { ViewMode, UIState, ImageAdjustments } from '@/lib/types'
+import { getDefaultAdjustments } from '@/lib/utils/adjustments'
 import { db } from '@/lib/store/db'
 
 export default function CullPage() {
@@ -31,7 +33,10 @@ export default function CullPage() {
     filterMode: 'all',
     sortMode: 'import-time',
     sortDirection: 'asc',
-    showCropTool: false
+    showCropTool: false,
+    showAdjustments: false,
+    thumbnailSize: 'medium' as const,
+    adjustments: getDefaultAdjustments()
   })
   
   const filteredImages = useFilteredImages(uiState.filterMode)
@@ -161,6 +166,10 @@ export default function CullPage() {
     }
   }, { preventDefault: true, enableOnFormTags: true })
   
+  useHotkeys('a', () => {
+    setUIState(prev => ({ ...prev, showAdjustments: !prev.showAdjustments }))
+  }, { preventDefault: true, enableOnFormTags: true })
+  
   if (allImages.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -196,17 +205,20 @@ export default function CullPage() {
           </span>
         </div>
         
-        {currentImage && (
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              {filteredImages.findIndex(img => img.id === uiState.currentImageId) + 1} of {filteredImages.length}
-            </span>
-            <RatingControls
-              image={currentImage}
-              onUpdate={forceUpdate}
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          {currentImage && (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {filteredImages.findIndex(img => img.id === uiState.currentImageId) + 1} of {filteredImages.length}
+              </span>
+              <RatingControls
+                image={currentImage}
+                onUpdate={forceUpdate}
+              />
+            </>
+          )}
+          
+        </div>
       </div>
       
       <Toolbar
@@ -236,7 +248,9 @@ export default function CullPage() {
                   showMetadata={uiState.showMetadata}
                   showFaceBoxes={uiState.showFaceBoxes}
                   showCropTool={uiState.showCropTool}
+                  showAdjustments={uiState.showAdjustments}
                   onToggleCropTool={() => setUIState(prev => ({ ...prev, showCropTool: !prev.showCropTool }))}
+                  onToggleAdjustments={() => setUIState(prev => ({ ...prev, showAdjustments: !prev.showAdjustments }))}
                   className="w-full h-full"
                 />
               )}
@@ -247,7 +261,9 @@ export default function CullPage() {
               onImageSelect={handleImageSelect}
               onUpdate={forceUpdate}
               showMetadata={uiState.showMetadata}
-              className="h-32 flex-shrink-0"
+              thumbnailSize={uiState.thumbnailSize}
+              onThumbnailSizeChange={(size) => setUIState(prev => ({ ...prev, thumbnailSize: size }))}
+              className="flex-shrink-0"
             />
           </>
         )}
@@ -258,7 +274,9 @@ export default function CullPage() {
             showMetadata={uiState.showMetadata}
             showFaceBoxes={uiState.showFaceBoxes}
             showCropTool={uiState.showCropTool}
+            showAdjustments={uiState.showAdjustments}
             onToggleCropTool={() => setUIState(prev => ({ ...prev, showCropTool: !prev.showCropTool }))}
+            onToggleAdjustments={() => setUIState(prev => ({ ...prev, showAdjustments: !prev.showAdjustments }))}
             className="flex-1"
           />
         )}
@@ -272,7 +290,9 @@ export default function CullPage() {
                 showMetadata={uiState.showMetadata}
                 showFaceBoxes={uiState.showFaceBoxes}
                 showCropTool={image.id === uiState.currentImageId && uiState.showCropTool}
+                showAdjustments={image.id === uiState.currentImageId && uiState.showAdjustments}
                 onToggleCropTool={image.id === uiState.currentImageId ? () => setUIState(prev => ({ ...prev, showCropTool: !prev.showCropTool })) : undefined}
+                onToggleAdjustments={image.id === uiState.currentImageId ? () => setUIState(prev => ({ ...prev, showAdjustments: !prev.showAdjustments })) : undefined}
                 className="min-h-0"
               />
             ))}
@@ -327,11 +347,12 @@ export default function CullPage() {
         <div className="flex justify-center gap-4">
           <span>←/→ Navigate</span>
           <span>1-5 Rate</span>
-          <span>P Pick</span>
-          <span>X Reject</span>
+          <span>P Thumbs Up</span>
+          <span>X Thumbs Down</span>
           <span>F Faces</span>
           <span>I Info</span>
           <span>C Crop</span>
+          <span>A Adjust</span>
         </div>
       </div>
     </div>
