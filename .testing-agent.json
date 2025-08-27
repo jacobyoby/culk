@@ -1,0 +1,124 @@
+{
+  "name": "AI Photo Culling Test Agent",
+  "version": "1.0.0",
+  "description": "Automated testing agent for AI Photo Culling PWA",
+  "testSuites": {
+    "unit": {
+      "commands": [
+        "pnpm test:unit",
+        "pnpm test:coverage"
+      ],
+      "coverage": {
+        "threshold": 80,
+        "include": ["src/lib/**", "src/workers/**"]
+      }
+    },
+    "integration": {
+      "commands": [
+        "pnpm test:integration"
+      ],
+      "targets": [
+        "import-flow",
+        "culling-ui",
+        "grouping-algorithm",
+        "export-xmp",
+        "pwa-offline"
+      ]
+    },
+    "e2e": {
+      "commands": [
+        "pnpm test:e2e"
+      ],
+      "browsers": ["chromium", "firefox", "webkit"],
+      "scenarios": [
+        "import-2000-images",
+        "auto-group-duplicates",
+        "face-eye-detection",
+        "xmp-export-lightroom"
+      ]
+    },
+    "docker": {
+      "commands": [
+        "docker compose -f docker-compose.test.yml up --build --abort-on-container-exit",
+        "docker build -t ai-cull:test -f Dockerfile --target test ."
+      ],
+      "healthcheck": {
+        "timeout": 30,
+        "interval": 5
+      }
+    },
+    "performance": {
+      "commands": [
+        "pnpm test:perf"
+      ],
+      "benchmarks": {
+        "import": {
+          "maxDuration": 5000,
+          "imageCount": 100
+        },
+        "phash": {
+          "maxDuration": 50,
+          "perImage": true
+        },
+        "faceDetection": {
+          "maxDuration": 100,
+          "perImage": true
+        }
+      }
+    }
+  },
+  "acceptanceCriteria": {
+    "import": [
+      "✓ 2000 images import quickly via embedded previews",
+      "✓ LibRaw WASM decodes RAW previews correctly",
+      "✓ EXIF metadata extracted and stored"
+    ],
+    "grouping": [
+      "✓ Auto-grouping by pHash similarity works",
+      "✓ SSIM refinement improves accuracy",
+      "✓ Auto-pick selects best image in group",
+      "✓ User can override auto-pick"
+    ],
+    "detection": [
+      "✓ Face badges show on detected faces",
+      "✓ Eye state (open/closed) detected correctly",
+      "✓ Focus score calculated via Laplacian variance",
+      "✓ Blur detection filters work"
+    ],
+    "export": [
+      "✓ XMP sidecars written with ratings/flags",
+      "✓ Lightroom reads XMP metadata correctly",
+      "✓ JSON/CSV export includes all metadata"
+    ],
+    "pwa": [
+      "✓ Service worker caches app for offline use",
+      "✓ Works on http://localhost (secure context)",
+      "✓ File System Access API functions properly",
+      "✓ PWA installable on desktop/mobile"
+    ],
+    "docker": [
+      "✓ Dev container hot-reloads on port 3000",
+      "✓ Production build passes healthcheck in 30s",
+      "✓ Multi-stage build minimizes image size",
+      "✓ Environment variables properly configured"
+    ]
+  },
+  "hooks": {
+    "preTest": [
+      "pnpm install",
+      "cp env.example .env.test"
+    ],
+    "postTest": [
+      "rm -rf coverage/",
+      "docker compose down"
+    ]
+  },
+  "ci": {
+    "provider": "github-actions",
+    "triggers": ["push", "pull_request"],
+    "matrix": {
+      "node": ["20", "22"],
+      "os": ["ubuntu-latest", "macos-latest"]
+    }
+  }
+}
