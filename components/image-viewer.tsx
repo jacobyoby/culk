@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ZoomIn, ZoomOut, RotateCw, Maximize2, Crop } from 'lucide-react'
+import { ZoomIn, ZoomOut, RotateCw, Maximize2, Crop, Check } from 'lucide-react'
 import { ImageRec } from '@/lib/types'
 import { getImageOrientation } from '@/lib/utils/image'
 import { CropTool } from './crop-tool'
@@ -28,6 +28,8 @@ export function ImageViewer({
   const [zoom, setZoom] = useState(1)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [rotation, setRotation] = useState(0)
+  const [currentPreviewUrl, setCurrentPreviewUrl] = useState(image.previewDataUrl)
+  const [currentCropRegion, setCurrentCropRegion] = useState(image.autoCropRegion)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
@@ -35,11 +37,59 @@ export function ImageViewer({
   const { updateCrop } = useImageActions()
   const orientation = getImageOrientation(image.metadata.orientation)
   
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.9 : 1.1
-    setZoom(prev => Math.max(0.5, Math.min(5, prev * delta)))
-  }
+  // Update preview URL when image prop changes
+  useEffect(() => {
+    setCurrentPreviewUrl(image.previewDataUrl)
+    setCurrentCropRegion(image.autoCropRegion)
+  }, [image.previewDataUrl, image.autoCropRegion])
+  
+  // Clean up blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      // Only revoke if it's a blob URL we created (not the original preview)
+      if (currentPreviewUrl && currentPreviewUrl.startsWith('blob:') && currentPreviewUrl !== image.previewDataUrl) {
+        URL.revokeObjectURL(currentPreviewUrl)
+      }
+    }
+  }, [currentPreviewUrl, image.previewDataUrl])
+  
+  // Prevent page scroll when hovering over image
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    
+    const handleNativeWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      
+      // Handle zoom with native event - smaller delta for smoother zoom
+      const zoomSpeed = 0.002
+      const delta = 1 - (e.deltaY * zoomSpeed)
+      setZoom(prev => {
+        const newZoom = prev * delta
+        // Clamp between 0.1 and 10 for better range
+        return Math.max(0.1, Math.min(10, newZoom))
+      })
+    }
+    
+    // Prevent default scrolling behavior on the container
+    const handleTouchMove = (e: TouchEvent) => {
+      // Only prevent if we're zoomed in
+      if (zoom > 1) {
+        e.preventDefault()
+      }
+    }
+    
+    // Use passive: false to allow preventDefault
+    container.addEventListener('wheel', handleNativeWheel, { passive: false })
+    container.addEventListener('touchmove', handleTouchMove, { passive: false })
+    
+    return () => {
+      container.removeEventListener('wheel', handleNativeWheel)
+      container.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [zoom])
+  
   
   const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true
@@ -73,18 +123,25 @@ export function ImageViewer({
   
   return (
     <div className={`relative bg-black overflow-hidden ${className}`} ref={containerRef}>
+      {/* Zoom indicator */}
+      {zoom !== 1 && (
+        <div className="absolute top-4 left-4 z-10 px-2 py-1 bg-black/70 rounded text-white text-sm">
+          {Math.round(zoom * 100)}%
+        </div>
+      )}
+      
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         <button
-          onClick={() => setZoom(prev => Math.min(5, prev * 1.2))}
+          onClick={() => setZoom(prev => Math.min(10, prev * 1.5))}
           className="p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-          title="Zoom In"
+          title={`Zoom In (${Math.round(zoom * 100)}%)`}
         >
           <ZoomIn className="w-5 h-5 text-white" />
         </button>
         <button
-          onClick={() => setZoom(prev => Math.max(0.5, prev * 0.8))}
+          onClick={() => setZoom(prev => Math.max(0.1, prev * 0.67))}
           className="p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-          title="Zoom Out"
+          title={`Zoom Out (${Math.round(zoom * 100)}%)`}
         >
           <ZoomOut className="w-5 h-5 text-white" />
         </button>
@@ -104,16 +161,18 @@ export function ImageViewer({
         </button>
         <button
           onClick={onToggleCropTool}
-          className="p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-          title="Crop Image"
+          className={`p-2 ${currentCropRegion ? 'bg-green-600/50' : 'bg-black/50'} hover:bg-black/70 rounded-lg transition-colors relative`}
+          title={currentCropRegion ? 'Crop Applied - Click to Modify' : 'Crop Image'}
         >
           <Crop className="w-5 h-5 text-white" />
+          {currentCropRegion && (
+            <Check className="w-3 h-3 text-green-400 absolute -top-1 -right-1" />
+          )}
         </button>
       </div>
       
       <div
         className="relative w-full h-full flex items-center justify-center cursor-move"
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -129,12 +188,13 @@ export function ImageViewer({
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           style={{ transform: orientation.transform }}
         >
-          {image.previewDataUrl ? (
+          {currentPreviewUrl ? (
             <img
-              src={image.previewDataUrl}
+              src={currentPreviewUrl}
               alt={image.fileName}
               className="max-w-full max-h-full object-contain"
               draggable={false}
+              key={currentPreviewUrl} // Force re-render when URL changes
             />
           ) : (
             <div className="w-96 h-96 bg-gray-800 flex items-center justify-center">
@@ -200,15 +260,26 @@ export function ImageViewer({
       )}
       
       <CropTool
-        image={image}
+        image={{...image, previewDataUrl: currentPreviewUrl, autoCropRegion: currentCropRegion}}
         isOpen={showCropTool}
         onClose={() => onToggleCropTool?.()}
         onCropApplied={(blob, newPreviewUrl) => {
           console.log('Crop applied:', blob.size, 'bytes', 'New preview:', newPreviewUrl)
+          // Update the local preview state immediately
+          setCurrentPreviewUrl(newPreviewUrl)
           onToggleCropTool?.()
         }}
         onImageUpdate={async (updatedImage) => {
           console.log('Image updated with crop info:', updatedImage)
+          // Update local state immediately for responsive UI
+          if (updatedImage.previewDataUrl) {
+            setCurrentPreviewUrl(updatedImage.previewDataUrl)
+          }
+          if (updatedImage.autoCropRegion) {
+            setCurrentCropRegion(updatedImage.autoCropRegion)
+          }
+          
+          // Then save to database
           try {
             await updateCrop(image.id, updatedImage)
             console.log('Crop information saved to database')
