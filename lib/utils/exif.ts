@@ -10,9 +10,39 @@ export async function extractMetadata(file: File | Blob): Promise<ImageMetadata>
     
     if (tags.Make) metadata.make = tags.Make.description
     if (tags.Model) metadata.model = tags.Model.description
-    if (tags.LensModel) metadata.lens = tags.LensModel.description
-    if (tags.FocalLength) metadata.focalLength = tags.FocalLength.value as number
-    if (tags.FNumber) metadata.aperture = tags.FNumber.value as number
+    if (tags.LensModel || tags.LensInfo) {
+      metadata.lens = tags.LensModel?.description || tags.LensInfo?.description
+    }
+    
+    // Focal Length - try multiple sources
+    if (tags.FocalLength) {
+      const focalLengthValue = tags.FocalLength.value as number
+      if (Array.isArray(focalLengthValue)) {
+        metadata.focalLength = focalLengthValue[0] || focalLengthValue
+      } else if (focalLengthValue > 1000) {
+        metadata.focalLength = Math.round(focalLengthValue / 100)
+      } else {
+        metadata.focalLength = Math.round(focalLengthValue)
+      }
+    }
+    
+    // Aperture - handle various formats
+    if (tags.FNumber || tags.ApertureValue) {
+      let apertureValue = tags.FNumber?.value || tags.ApertureValue?.value
+      if (Array.isArray(apertureValue)) {
+        apertureValue = apertureValue[0]
+      }
+      
+      if (apertureValue > 1000) {
+        metadata.aperture = parseFloat((apertureValue / 1000).toFixed(1))
+      } else if (apertureValue > 100) {
+        metadata.aperture = parseFloat((apertureValue / 100).toFixed(1))
+      } else if (apertureValue > 10) {
+        metadata.aperture = parseFloat((apertureValue / 10).toFixed(1))
+      } else {
+        metadata.aperture = parseFloat(apertureValue.toFixed(1))
+      }
+    }
     if (tags.ExposureTime) metadata.shutterSpeed = tags.ExposureTime.description
     if (tags.ISOSpeedRatings) metadata.iso = tags.ISOSpeedRatings.value as number
     if (tags.DateTimeOriginal) {
