@@ -1,6 +1,6 @@
-import { expect, afterEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
-import * as matchers from '@testing-library/jest-dom/matchers';
+import * as matchers from "@testing-library/jest-dom/matchers";
+import { cleanup } from "@testing-library/react";
+import { afterEach, expect, vi } from "vitest";
 
 expect.extend(matchers);
 
@@ -13,7 +13,7 @@ global.indexedDB = {
   open: vi.fn(),
   deleteDatabase: vi.fn(),
   databases: vi.fn(),
-  cmp: vi.fn()
+  cmp: vi.fn(),
 } as any;
 
 global.FileSystemDirectoryHandle = vi.fn() as any;
@@ -25,20 +25,20 @@ global.Worker = vi.fn(() => ({
   removeEventListener: vi.fn(),
   terminate: vi.fn(),
   onmessage: vi.fn(),
-  onerror: vi.fn()
+  onerror: vi.fn(),
 })) as any;
 
 global.ImageData = class ImageData {
   constructor(
     public data: Uint8ClampedArray,
     public width: number,
-    public height: number
+    public height: number,
   ) {}
 } as any;
 
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -46,11 +46,11 @@ Object.defineProperty(window, 'matchMedia', {
     removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn()
-  }))
+    dispatchEvent: vi.fn(),
+  })),
 });
 
-Object.defineProperty(navigator, 'serviceWorker', {
+Object.defineProperty(navigator, "serviceWorker", {
   writable: true,
   value: {
     register: vi.fn(),
@@ -58,7 +58,7 @@ Object.defineProperty(navigator, 'serviceWorker', {
       unregister: vi.fn(),
       active: null,
       installing: null,
-      waiting: null
-    })
-  }
+      waiting: null,
+    }),
+  },
 });

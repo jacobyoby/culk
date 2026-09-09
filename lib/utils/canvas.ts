@@ -3,9 +3,9 @@
  */
 
 export interface CanvasConfig {
-  willReadFrequently?: boolean
-  alpha?: boolean
-  desynchronized?: boolean
+  willReadFrequently?: boolean;
+  alpha?: boolean;
+  desynchronized?: boolean;
 }
 
 /**
@@ -13,65 +13,65 @@ export interface CanvasConfig {
  */
 export async function createCanvasFromImage(
   imageSrc: string | HTMLImageElement,
-  config: CanvasConfig = {}
+  config: CanvasConfig = {},
 ): Promise<{ canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; cleanup: () => void }> {
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d', {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", {
     willReadFrequently: config.willReadFrequently ?? false,
     alpha: config.alpha ?? true,
-    desynchronized: config.desynchronized ?? false
-  })
-  
+    desynchronized: config.desynchronized ?? false,
+  });
+
   if (!ctx) {
-    throw new Error('Could not get canvas context')
+    throw new Error("Could not get canvas context");
   }
-  
-  let img: HTMLImageElement
-  let shouldCleanupImg = false
-  
-  if (typeof imageSrc === 'string') {
-    img = new Image()
-    shouldCleanupImg = true
-    
+
+  let img: HTMLImageElement;
+  let shouldCleanupImg = false;
+
+  if (typeof imageSrc === "string") {
+    img = new Image();
+    shouldCleanupImg = true;
+
     await new Promise<void>((resolve, reject) => {
       const cleanup = () => {
-        img.onload = null
-        img.onerror = null
-      }
-      
+        img.onload = null;
+        img.onerror = null;
+      };
+
       img.onload = () => {
-        cleanup()
-        resolve()
-      }
-      
+        cleanup();
+        resolve();
+      };
+
       img.onerror = () => {
-        cleanup()
-        reject(new Error('Failed to load image'))
-      }
-      
-      img.src = imageSrc
-    })
+        cleanup();
+        reject(new Error("Failed to load image"));
+      };
+
+      img.src = imageSrc;
+    });
   } else {
-    img = imageSrc
+    img = imageSrc;
   }
-  
-  canvas.width = img.width
-  canvas.height = img.height
-  ctx.drawImage(img, 0, 0)
-  
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.drawImage(img, 0, 0);
+
   const cleanup = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    canvas.width = 0
-    canvas.height = 0
-    
-    if (shouldCleanupImg && img.src.startsWith('blob:')) {
-      img.onload = null
-      img.onerror = null
-      URL.revokeObjectURL(img.src)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 0;
+    canvas.height = 0;
+
+    if (shouldCleanupImg && img.src.startsWith("blob:")) {
+      img.onload = null;
+      img.onerror = null;
+      URL.revokeObjectURL(img.src);
     }
-  }
-  
-  return { canvas, ctx, cleanup }
+  };
+
+  return { canvas, ctx, cleanup };
 }
 
 /**
@@ -79,24 +79,24 @@ export async function createCanvasFromImage(
  */
 export async function createCanvasFromFile(
   file: File | Blob,
-  config: CanvasConfig = {}
+  config: CanvasConfig = {},
 ): Promise<{ canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; cleanup: () => void }> {
-  const url = URL.createObjectURL(file)
-  
+  const url = URL.createObjectURL(file);
+
   try {
-    const result = await createCanvasFromImage(url, config)
-    
+    const result = await createCanvasFromImage(url, config);
+
     // Override cleanup to also revoke the object URL
-    const originalCleanup = result.cleanup
+    const originalCleanup = result.cleanup;
     result.cleanup = () => {
-      originalCleanup()
-      URL.revokeObjectURL(url)
-    }
-    
-    return result
+      originalCleanup();
+      URL.revokeObjectURL(url);
+    };
+
+    return result;
   } catch (error) {
-    URL.revokeObjectURL(url)
-    throw error
+    URL.revokeObjectURL(url);
+    throw error;
   }
 }
 
@@ -105,26 +105,26 @@ export async function createCanvasFromFile(
  */
 export function sampleCanvas(
   sourceCanvas: HTMLCanvasElement,
-  maxDimension: number
+  maxDimension: number,
 ): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; scale: number } {
-  const scale = Math.min(1, maxDimension / Math.max(sourceCanvas.width, sourceCanvas.height))
-  
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
-  
+  const scale = Math.min(1, maxDimension / Math.max(sourceCanvas.width, sourceCanvas.height));
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
   if (!ctx) {
-    throw new Error('Could not get canvas context')
+    throw new Error("Could not get canvas context");
   }
-  
-  const newWidth = Math.floor(sourceCanvas.width * scale)
-  const newHeight = Math.floor(sourceCanvas.height * scale)
-  
-  canvas.width = newWidth
-  canvas.height = newHeight
-  
-  ctx.drawImage(sourceCanvas, 0, 0, newWidth, newHeight)
-  
-  return { canvas, ctx, scale }
+
+  const newWidth = Math.floor(sourceCanvas.width * scale);
+  const newHeight = Math.floor(sourceCanvas.height * scale);
+
+  canvas.width = newWidth;
+  canvas.height = newHeight;
+
+  ctx.drawImage(sourceCanvas, 0, 0, newWidth, newHeight);
+
+  return { canvas, ctx, scale };
 }
 
 /**
@@ -132,36 +132,32 @@ export function sampleCanvas(
  */
 export async function canvasToBlob(
   canvas: HTMLCanvasElement,
-  type: string = 'image/jpeg',
-  quality: number = 0.9
+  type: string = "image/jpeg",
+  quality: number = 0.9,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (blob) {
-          resolve(blob)
+          resolve(blob);
         } else {
-          reject(new Error('Failed to create blob from canvas'))
+          reject(new Error("Failed to create blob from canvas"));
         }
       },
       type,
-      quality
-    )
-  })
+      quality,
+    );
+  });
 }
 
 /**
  * Convert canvas to data URL with error handling
  */
-export function canvasToDataURL(
-  canvas: HTMLCanvasElement,
-  type: string = 'image/jpeg',
-  quality: number = 0.9
-): string {
+export function canvasToDataURL(canvas: HTMLCanvasElement, type: string = "image/jpeg", quality: number = 0.9): string {
   try {
-    return canvas.toDataURL(type, quality)
+    return canvas.toDataURL(type, quality);
   } catch (error) {
-    throw new Error(`Failed to create data URL: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    throw new Error(`Failed to create data URL: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
@@ -170,36 +166,36 @@ export function canvasToDataURL(
  */
 export async function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image()
-    
+    const img = new Image();
+
     const cleanup = () => {
-      img.onload = null
-      img.onerror = null
-    }
-    
+      img.onload = null;
+      img.onerror = null;
+    };
+
     img.onload = () => {
-      cleanup()
-      resolve(img)
-    }
-    
+      cleanup();
+      resolve(img);
+    };
+
     img.onerror = () => {
-      cleanup()
-      reject(new Error('Failed to load image'))
-    }
-    
-    img.src = src
-  })
+      cleanup();
+      reject(new Error("Failed to load image"));
+    };
+
+    img.src = src;
+  });
 }
 
 /**
  * Safely revoke object URLs with existence check
  */
 export function safeRevokeObjectURL(url: string | null | undefined) {
-  if (url && typeof url === 'string' && url.startsWith('blob:')) {
+  if (url && typeof url === "string" && url.startsWith("blob:")) {
     try {
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(url);
     } catch (error) {
-      console.warn('Failed to revoke object URL:', error)
+      console.warn("Failed to revoke object URL:", error);
     }
   }
 }
@@ -208,12 +204,12 @@ export function safeRevokeObjectURL(url: string | null | undefined) {
  * Create a download link for a blob
  */
 export function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 /**
@@ -224,21 +220,16 @@ export function getImageData(
   x: number = 0,
   y: number = 0,
   width?: number,
-  height?: number
+  height?: number,
 ): ImageData {
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error('Could not get canvas context')
+    throw new Error("Could not get canvas context");
   }
-  
+
   try {
-    return ctx.getImageData(
-      x, 
-      y, 
-      width ?? canvas.width, 
-      height ?? canvas.height
-    )
+    return ctx.getImageData(x, y, width ?? canvas.width, height ?? canvas.height);
   } catch (error) {
-    throw new Error(`Failed to get image data: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    throw new Error(`Failed to get image data: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }

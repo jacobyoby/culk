@@ -1,6 +1,6 @@
-import { FaceDetectionTest } from '@/components/face-detection-test'
-import { FaceDebug } from '@/components/face-debug'
-import { FaceReprocess } from '@/components/face-reprocess'
+import { FaceDebug } from "@/components/face-debug";
+import { FaceDetectionTest } from "@/components/face-detection-test";
+import { FaceReprocess } from "@/components/face-reprocess";
 
 export default function TestPage() {
   return (
@@ -9,5 +9,5 @@ export default function TestPage() {
       <FaceDebug />
       <FaceReprocess />
     </div>
-  )
+  );
 }

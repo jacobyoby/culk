@@ -1,36 +1,36 @@
-'use client'
+"use client";
 
-import { Star, ThumbsUp, ThumbsDown } from 'lucide-react'
-import { ImageRec } from '@/lib/types'
-import { db } from '@/lib/store/db'
+import { Star, ThumbsDown, ThumbsUp } from "lucide-react";
+import { db } from "@/lib/store/db";
+import type { ImageRec } from "@/lib/types";
 
 interface RatingControlsProps {
-  image: ImageRec
-  onUpdate?: () => void
-  className?: string
+  image: ImageRec;
+  onUpdate?: () => void;
+  className?: string;
 }
 
-export function RatingControls({ image, onUpdate, className = '' }: RatingControlsProps) {
+export function RatingControls({ image, onUpdate, className = "" }: RatingControlsProps) {
   const handleRating = async (rating: number) => {
-    await db.updateImageRating(image.id, rating)
-    onUpdate?.()
-  }
-  
-  const handleFlag = async (flag: 'pick' | 'reject' | null) => {
-    console.log('handleFlag called with:', flag, 'for image:', image.id)
+    await db.updateImageRating(image.id, rating);
+    onUpdate?.();
+  };
+
+  const handleFlag = async (flag: "pick" | "reject" | null) => {
+    console.log("handleFlag called with:", flag, "for image:", image.id);
     try {
-      await db.updateImageFlag(image.id, flag)
-      console.log('Flag updated successfully')
-      onUpdate?.()
+      await db.updateImageFlag(image.id, flag);
+      console.log("Flag updated successfully");
+      onUpdate?.();
     } catch (error) {
-      console.error('Error updating flag:', error)
+      console.error("Error updating flag:", error);
     }
-  }
-  
+  };
+
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map(rating => (
+        {[1, 2, 3, 4, 5].map((rating) => (
           <button
             key={rating}
             onClick={() => handleRating(rating)}
@@ -39,49 +39,43 @@ export function RatingControls({ image, onUpdate, className = '' }: RatingContro
           >
             <Star
               className={`w-5 h-5 ${
-                image.rating >= rating
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'text-muted-foreground'
+                image.rating >= rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
               }`}
             />
           </button>
         ))}
       </div>
-      
+
       <div className="h-6 w-px bg-border mx-2" />
-      
+
       <div className="flex gap-1">
         <button
           onClick={() => {
-            console.log('Thumbs up clicked, current flag:', image.flag)
-            handleFlag(image.flag === 'pick' ? null : 'pick')
+            console.log("Thumbs up clicked, current flag:", image.flag);
+            handleFlag(image.flag === "pick" ? null : "pick");
           }}
           className={`p-2 rounded transition-colors ${
-            image.flag === 'pick'
-              ? 'bg-green-600 text-white'
-              : 'hover:bg-muted text-muted-foreground'
+            image.flag === "pick" ? "bg-green-600 text-white" : "hover:bg-muted text-muted-foreground"
           }`}
           title="Pick (Thumbs Up)"
         >
           <ThumbsUp className="w-4 h-4" />
         </button>
-        
+
         <button
           onClick={() => {
-            console.log('Thumbs down clicked, current flag:', image.flag)
-            handleFlag(image.flag === 'reject' ? null : 'reject')
+            console.log("Thumbs down clicked, current flag:", image.flag);
+            handleFlag(image.flag === "reject" ? null : "reject");
           }}
           className={`p-2 rounded transition-colors ${
-            image.flag === 'reject'
-              ? 'bg-red-600 text-white'
-              : 'hover:bg-muted text-muted-foreground'
+            image.flag === "reject" ? "bg-red-600 text-white" : "hover:bg-muted text-muted-foreground"
           }`}
           title="Reject (Thumbs Down)"
         >
           <ThumbsDown className="w-4 h-4" />
         </button>
       </div>
-      
+
       {image.rating > 0 && (
         <button
           onClick={() => handleRating(0)}
@@ -92,5 +86,5 @@ export function RatingControls({ image, onUpdate, className = '' }: RatingContro
         </button>
       )}
     </div>
-  )
+  );
 }

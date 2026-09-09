@@ -1,34 +1,24 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { 
-  Grid3X3, 
-  Maximize2, 
-  Copy, 
-  LayoutGrid, 
-  Filter, 
-  SortAsc, 
-  Eye,
-  Info,
-  Settings
-} from 'lucide-react'
-import { ViewMode } from '@/lib/types'
-import { Button, IconButton } from '@/components/ui/button'
-import { Dropdown, DropdownOption } from '@/components/ui/dropdown'
+import { Copy, Eye, Filter, Grid3X3, Info, LayoutGrid, Maximize2, Settings, SortAsc } from "lucide-react";
+import { useState } from "react";
+import { Button, IconButton } from "@/components/ui/button";
+import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
+import type { ViewMode } from "@/lib/types";
 
 interface ToolbarProps {
-  viewMode: ViewMode
-  onViewModeChange: (mode: ViewMode) => void
-  filterMode: string
-  onFilterModeChange: (filter: string) => void
-  sortMode: string
-  onSortModeChange: (sort: string) => void
-  showFaceBoxes: boolean
-  onToggleFaceBoxes: () => void
-  showMetadata: boolean
-  onToggleMetadata: () => void
-  onOpenSettings: () => void
-  className?: string
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  filterMode: string;
+  onFilterModeChange: (filter: string) => void;
+  sortMode: string;
+  onSortModeChange: (sort: string) => void;
+  showFaceBoxes: boolean;
+  onToggleFaceBoxes: () => void;
+  showMetadata: boolean;
+  onToggleMetadata: () => void;
+  onOpenSettings: () => void;
+  className?: string;
 }
 
 export function Toolbar({
@@ -43,31 +33,31 @@ export function Toolbar({
   showMetadata,
   onToggleMetadata,
   onOpenSettings,
-  className = ''
+  className = "",
 }: ToolbarProps) {
   const viewModes = [
-    { id: 'filmstrip', icon: Grid3X3, label: 'Filmstrip' },
-    { id: 'loupe', icon: Maximize2, label: 'Loupe' },
-    { id: 'compare', icon: Copy, label: 'Compare' },
-    { id: 'survey', icon: LayoutGrid, label: 'Survey' }
-  ] as const
-  
+    { id: "filmstrip", icon: Grid3X3, label: "Filmstrip" },
+    { id: "loupe", icon: Maximize2, label: "Loupe" },
+    { id: "compare", icon: Copy, label: "Compare" },
+    { id: "survey", icon: LayoutGrid, label: "Survey" },
+  ] as const;
+
   const filters: DropdownOption[] = [
-    { id: 'all', label: 'All Images' },
-    { id: 'picks', label: 'Picks Only' },
-    { id: 'rejects', label: 'Rejects Only' },
-    { id: 'unrated', label: 'Unrated' },
-    { id: 'blurry', label: 'Blurry Images' },
-    { id: 'eyes-closed', label: 'Eyes Closed' }
-  ]
-  
+    { id: "all", label: "All Images" },
+    { id: "picks", label: "Picks Only" },
+    { id: "rejects", label: "Rejects Only" },
+    { id: "unrated", label: "Unrated" },
+    { id: "blurry", label: "Blurry Images" },
+    { id: "eyes-closed", label: "Eyes Closed" },
+  ];
+
   const sorts: DropdownOption[] = [
-    { id: 'capture-time', label: 'Capture Time' },
-    { id: 'import-time', label: 'Import Time' },
-    { id: 'rating', label: 'Rating' },
-    { id: 'name', label: 'File Name' }
-  ]
-  
+    { id: "capture-time", label: "Capture Time" },
+    { id: "import-time", label: "Import Time" },
+    { id: "rating", label: "Rating" },
+    { id: "name", label: "File Name" },
+  ];
+
   return (
     <div className={`bg-card border-b border-border p-4 ${className}`}>
       <div className="flex items-center justify-between">
@@ -79,31 +69,26 @@ export function Toolbar({
                 icon={Icon}
                 onClick={() => onViewModeChange(id as ViewMode)}
                 active={viewMode === id}
-                variant={viewMode === id ? 'default' : 'ghost'}
+                variant={viewMode === id ? "default" : "ghost"}
                 tooltip={label}
                 className="rounded-md"
               />
             ))}
           </div>
-          
+
           <Dropdown
             options={filters}
             value={filterMode}
             onValueChange={onFilterModeChange}
-            badge={filterMode !== 'all'}
+            badge={filterMode !== "all"}
             trigger={
-              <Button
-                variant={filterMode !== 'all' ? 'default' : 'muted'}
-                className="flex items-center gap-2"
-              >
+              <Button variant={filterMode !== "all" ? "default" : "muted"} className="flex items-center gap-2">
                 <Filter className="w-4 h-4" />
-                <span className="text-sm">
-                  {filters.find(f => f.id === filterMode)?.label || 'Filter'}
-                </span>
+                <span className="text-sm">{filters.find((f) => f.id === filterMode)?.label || "Filter"}</span>
               </Button>
             }
           />
-          
+
           <Dropdown
             options={sorts}
             value={sortMode}
@@ -111,14 +96,12 @@ export function Toolbar({
             trigger={
               <Button variant="muted" className="flex items-center gap-2">
                 <SortAsc className="w-4 h-4" />
-                <span className="text-sm">
-                  {sorts.find(s => s.id === sortMode)?.label || 'Sort'}
-                </span>
+                <span className="text-sm">{sorts.find((s) => s.id === sortMode)?.label || "Sort"}</span>
               </Button>
             }
           />
         </div>
-        
+
         <div className="flex items-center gap-2">
           <IconButton
             icon={Eye}
@@ -127,7 +110,7 @@ export function Toolbar({
             variant="muted"
             tooltip="Toggle face detection boxes"
           />
-          
+
           <IconButton
             icon={Info}
             onClick={onToggleMetadata}
@@ -135,15 +118,10 @@ export function Toolbar({
             variant="muted"
             tooltip="Toggle metadata display"
           />
-          
-          <IconButton
-            icon={Settings}
-            onClick={onOpenSettings}
-            variant="muted"
-            tooltip="Settings"
-          />
+
+          <IconButton icon={Settings} onClick={onOpenSettings} variant="muted" tooltip="Settings" />
         </div>
       </div>
     </div>
-  )
+  );
 }
