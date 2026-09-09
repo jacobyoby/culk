@@ -252,6 +252,12 @@ pnpm lint
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Support
+
+[Donate / Support Jacobrakai Foundation — JACOBRAKAI FOUNDATION 501(c)(3)](https://donate.stripe.com/eVq4gy97DanS9h60phfrW00)
+
+JACOBRAKAI FOUNDATION (Jacobrakai Foundation) is an IRS 501(c)(3) public charity, EIN 33-3382083, effective February 11, 2025.
+
 ## Acknowledgments
 
 - LibRaw team for RAW processing algorithms
