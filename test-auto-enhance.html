@@ -131,7 +131,7 @@
             };
         }
 
-        window.createTestImage = function() {
+        window.createTestImage = () => {
             const canvas = document.getElementById('testCanvas');
             const ctx = canvas.getContext('2d');
             
@@ -156,7 +156,7 @@
             console.log('Test image created');
         };
 
-        window.testAutoEnhance = function() {
+        window.testAutoEnhance = () => {
             const canvas = document.getElementById('testCanvas');
             const ctx = canvas.getContext('2d');
             const imageData = ctx.getImageData(0, 0, 200, 200);
@@ -167,7 +167,7 @@
             const analysis = analyzeExposure(histogram);
             
             // Calculate suggested adjustments
-            let adjustments = {
+            const adjustments = {
                 brightness: 0,
                 contrast: 0,
                 shadows: 0,

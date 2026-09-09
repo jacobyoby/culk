@@ -1,31 +1,31 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Star, ThumbsUp, ThumbsDown, Eye, EyeOff, AlertCircle, Crop, Settings2, Grid3X3 } from 'lucide-react'
-import { ImageRec, ThumbnailSize } from '@/lib/types'
-import { RatingControls } from './rating-controls'
-import { Button } from '@/components/ui/button'
-import { Dropdown, DropdownOption } from '@/components/ui/dropdown'
-import { getFaceDetectionStatus } from '@/lib/utils/face-detection'
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, Crop, Eye, EyeOff, Grid3X3, Settings2, Star, ThumbsDown, ThumbsUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Dropdown, DropdownOption } from "@/components/ui/dropdown";
+import type { ImageRec, ThumbnailSize } from "@/lib/types";
+import { getFaceDetectionStatus } from "@/lib/utils/face-detection";
+import { RatingControls } from "./rating-controls";
 
 interface FilmstripProps {
-  images: ImageRec[]
-  selectedImageId?: string
-  onImageSelect: (imageId: string) => void
-  onUpdate?: () => void
-  showMetadata?: boolean
-  thumbnailSize?: ThumbnailSize
-  onThumbnailSizeChange?: (size: ThumbnailSize) => void
-  className?: string
+  images: ImageRec[];
+  selectedImageId?: string;
+  onImageSelect: (imageId: string) => void;
+  onUpdate?: () => void;
+  showMetadata?: boolean;
+  thumbnailSize?: ThumbnailSize;
+  onThumbnailSizeChange?: (size: ThumbnailSize) => void;
+  className?: string;
 }
 
 const THUMBNAIL_SIZES = {
-  small: { width: 'w-16', height: 'h-16', label: 'Small (64px)' },
-  medium: { width: 'w-24', height: 'h-24', label: 'Medium (96px)' },
-  large: { width: 'w-32', height: 'h-32', label: 'Large (128px)' },
-  xlarge: { width: 'w-40', height: 'h-40', label: 'X-Large (160px)' }
-} as const
+  small: { width: "w-16", height: "h-16", label: "Small (64px)" },
+  medium: { width: "w-24", height: "h-24", label: "Medium (96px)" },
+  large: { width: "w-32", height: "h-32", label: "Large (128px)" },
+  xlarge: { width: "w-40", height: "h-40", label: "X-Large (160px)" },
+} as const;
 
 export function Filmstrip({
   images,
@@ -33,80 +33,76 @@ export function Filmstrip({
   onImageSelect,
   onUpdate,
   showMetadata = false,
-  thumbnailSize = 'medium',
+  thumbnailSize = "medium",
   onThumbnailSizeChange,
-  className = ''
+  className = "",
 }: FilmstripProps) {
-  const [hoveredImageId, setHoveredImageId] = useState<string | null>(null)
-  const [showSizeSelector, setShowSizeSelector] = useState(false)
-  const filmstripRef = useRef<HTMLDivElement>(null)
-  const selectorRef = useRef<HTMLDivElement>(null)
-  
+  const [hoveredImageId, setHoveredImageId] = useState<string | null>(null);
+  const [showSizeSelector, setShowSizeSelector] = useState(false);
+  const filmstripRef = useRef<HTMLDivElement>(null);
+  const selectorRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (selectedImageId && filmstripRef.current) {
-      const selectedElement = filmstripRef.current.querySelector(
-        `[data-image-id="${selectedImageId}"]`
-      )
+      const selectedElement = filmstripRef.current.querySelector(`[data-image-id="${selectedImageId}"]`);
       if (selectedElement) {
         selectedElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'center'
-        })
+          behavior: "smooth",
+          block: "center",
+          inline: "center",
+        });
       }
     }
-  }, [selectedImageId])
+  }, [selectedImageId]);
 
   // Close size selector when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (selectorRef.current && !selectorRef.current.contains(event.target as Node)) {
-        setShowSizeSelector(false)
+        setShowSizeSelector(false);
       }
     }
 
     if (showSizeSelector) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [showSizeSelector])
-  
+  }, [showSizeSelector]);
+
   const getStatusIcon = (image: ImageRec) => {
-    if (image.flag === 'pick') return <ThumbsUp className="w-3 h-3 text-green-400" />
-    if (image.flag === 'reject') return <ThumbsDown className="w-3 h-3 text-red-400" />
-    if (image.blurScore && image.blurScore > 100) return <AlertCircle className="w-3 h-3 text-orange-400" />
-    
-    const faceStatus = getFaceDetectionStatus(image)
+    if (image.flag === "pick") return <ThumbsUp className="w-3 h-3 text-green-400" />;
+    if (image.flag === "reject") return <ThumbsDown className="w-3 h-3 text-red-400" />;
+    if (image.blurScore && image.blurScore > 100) return <AlertCircle className="w-3 h-3 text-orange-400" />;
+
+    const faceStatus = getFaceDetectionStatus(image);
     if (faceStatus.hasClosedEyes) {
-      return <EyeOff className="w-3 h-3 text-yellow-400" />
+      return <EyeOff className="w-3 h-3 text-yellow-400" />;
     }
-    
+
     if (image.autoCropRegion && image.autoCropRegion.confidence > 0.7) {
-      return <Crop className="w-3 h-3 text-blue-400" />
+      return <Crop className="w-3 h-3 text-blue-400" />;
     }
-    return null
-  }
-  
-  const currentSize = THUMBNAIL_SIZES[thumbnailSize]
-  const thumbnailClasses = `${currentSize.width} ${currentSize.height}`
-  
+    return null;
+  };
+
+  const currentSize = THUMBNAIL_SIZES[thumbnailSize];
+  const thumbnailClasses = `${currentSize.width} ${currentSize.height}`;
+
   return (
     <div className={`bg-card border-t border-border ${className}`}>
       {/* Filmstrip Header with Controls */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border">
         <div className="flex items-center gap-2">
           <Grid3X3 className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">
-            {images.length} images
-          </span>
+          <span className="text-sm font-medium text-muted-foreground">{images.length} images</span>
         </div>
-        
+
         {onThumbnailSizeChange && (
           <Dropdown
-            options={(Object.keys(THUMBNAIL_SIZES) as ThumbnailSize[]).map(size => ({
+            options={(Object.keys(THUMBNAIL_SIZES) as ThumbnailSize[]).map((size) => ({
               id: size,
               label: THUMBNAIL_SIZES[size].label,
-              icon: Settings2
+              icon: Settings2,
             }))}
             value={thumbnailSize}
             onValueChange={(size) => onThumbnailSizeChange(size as ThumbnailSize)}
@@ -120,17 +116,26 @@ export function Filmstrip({
           />
         )}
       </div>
-      
+
       <div
         ref={filmstripRef}
         className="flex gap-3 p-4 overflow-x-auto no-scrollbar"
-        style={{ minHeight: thumbnailSize === 'xlarge' ? '200px' : thumbnailSize === 'large' ? '160px' : thumbnailSize === 'medium' ? '120px' : '88px' }}
+        style={{
+          minHeight:
+            thumbnailSize === "xlarge"
+              ? "200px"
+              : thumbnailSize === "large"
+                ? "160px"
+                : thumbnailSize === "medium"
+                  ? "120px"
+                  : "88px",
+        }}
       >
         <AnimatePresence>
           {images.map((image, index) => {
-            const isSelected = image.id === selectedImageId
-            const isHovered = image.id === hoveredImageId
-            
+            const isSelected = image.id === selectedImageId;
+            const isHovered = image.id === hoveredImageId;
+
             return (
               <motion.div
                 key={image.id}
@@ -147,12 +152,12 @@ export function Filmstrip({
                   onClick={() => onImageSelect(image.id)}
                   className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 ${
                     isSelected
-                      ? image.flag === 'pick' 
-                        ? 'border-green-500 shadow-lg shadow-green-500/20 scale-105'
-                        : image.flag === 'reject'
-                        ? 'border-red-500 shadow-lg shadow-red-500/20 scale-105 opacity-75'
-                        : 'border-primary shadow-lg scale-105'
-                      : 'border-border hover:border-primary/50'
+                      ? image.flag === "pick"
+                        ? "border-green-500 shadow-lg shadow-green-500/20 scale-105"
+                        : image.flag === "reject"
+                          ? "border-red-500 shadow-lg shadow-red-500/20 scale-105 opacity-75"
+                          : "border-primary shadow-lg scale-105"
+                      : "border-border hover:border-primary/50"
                   }`}
                 >
                   {image.thumbnailDataUrl ? (
@@ -165,56 +170,55 @@ export function Filmstrip({
                     />
                   ) : (
                     <div className={`${thumbnailClasses} bg-muted flex items-center justify-center`}>
-                      <span className={`text-muted-foreground ${
-                        thumbnailSize === 'small' ? 'text-xs' : 'text-sm'
-                      }`}>
+                      <span className={`text-muted-foreground ${thumbnailSize === "small" ? "text-xs" : "text-sm"}`}>
                         No preview
                       </span>
                     </div>
                   )}
-                  
+
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  
+
                   {/* Status Icons - sized based on thumbnail size */}
-                  <div className={`absolute flex gap-1 ${
-                    thumbnailSize === 'small' ? 'top-1 right-1' : 'top-2 right-2'
-                  }`}>
+                  <div
+                    className={`absolute flex gap-1 ${thumbnailSize === "small" ? "top-1 right-1" : "top-2 right-2"}`}
+                  >
                     {getStatusIcon(image)}
                     {image.groupId && (
-                      <div className={`bg-blue-500 rounded-full border border-white ${
-                        thumbnailSize === 'small' ? 'w-2 h-2' : 'w-3 h-3'
-                      }`} />
+                      <div
+                        className={`bg-blue-500 rounded-full border border-white ${
+                          thumbnailSize === "small" ? "w-2 h-2" : "w-3 h-3"
+                        }`}
+                      />
                     )}
                   </div>
-                  
+
                   {/* Rating Stars - sized and positioned based on thumbnail size */}
                   {image.rating > 0 && (
-                    <div className={`absolute flex ${
-                      thumbnailSize === 'small' 
-                        ? 'bottom-1 left-1' 
-                        : 'bottom-2 left-2'
-                    }`}>
-                      {Array.from({ length: image.rating }).map((_, i) => (
-                        <Star key={i} className={`fill-yellow-400 text-yellow-400 ${
-                          thumbnailSize === 'small' ? 'w-2.5 h-2.5' : 'w-3 h-3'
-                        }`} />
+                    <div
+                      className={`absolute flex ${thumbnailSize === "small" ? "bottom-1 left-1" : "bottom-2 left-2"}`}
+                    >
+                      {Array.from({ length: image.rating }, (_, star) => star + 1).map((star) => (
+                        <Star
+                          key={star}
+                          className={`fill-yellow-400 text-yellow-400 ${
+                            thumbnailSize === "small" ? "w-2.5 h-2.5" : "w-3 h-3"
+                          }`}
+                        />
                       ))}
                     </div>
                   )}
-                  
+
                   {/* Enhanced Metadata Overlay - only for larger thumbnails */}
-                  {showMetadata && (isSelected || isHovered) && thumbnailSize !== 'small' && (
+                  {showMetadata && (isSelected || isHovered) && thumbnailSize !== "small" && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="absolute bottom-0 left-0 right-0 bg-black/90 text-white p-2"
                     >
-                      <p className={`truncate font-medium ${
-                        thumbnailSize === 'xlarge' ? 'text-sm' : 'text-xs'
-                      }`}>
+                      <p className={`truncate font-medium ${thumbnailSize === "xlarge" ? "text-sm" : "text-xs"}`}>
                         {image.fileName}
                       </p>
-                      {thumbnailSize === 'xlarge' && (
+                      {thumbnailSize === "xlarge" && (
                         <>
                           {image.metadata.dateTime && (
                             <p className="opacity-75 text-xs">
@@ -223,8 +227,8 @@ export function Filmstrip({
                           )}
                           {(image.focusScore || image.blurScore) && (
                             <p className="opacity-75 text-xs">
-                              {image.focusScore ? `Focus: ${Math.round(image.focusScore)}` : ''}
-                              {image.blurScore ? ` Blur: ${Math.round(image.blurScore)}` : ''}
+                              {image.focusScore ? `Focus: ${Math.round(image.focusScore)}` : ""}
+                              {image.blurScore ? ` Blur: ${Math.round(image.blurScore)}` : ""}
                             </p>
                           )}
                         </>
@@ -232,9 +236,9 @@ export function Filmstrip({
                     </motion.div>
                   )}
                 </div>
-                
+
                 {/* Quick Rating Controls - only show for medium+ thumbnails on hover */}
-                {isHovered && thumbnailSize !== 'small' && (
+                {isHovered && thumbnailSize !== "small" && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -244,17 +248,17 @@ export function Filmstrip({
                       <RatingControls
                         image={image}
                         onUpdate={onUpdate}
-                        className={thumbnailSize === 'xlarge' ? 'scale-90 origin-center' : 'scale-75 origin-center'}
+                        className={thumbnailSize === "xlarge" ? "scale-90 origin-center" : "scale-75 origin-center"}
                       />
                     </div>
                   </motion.div>
                 )}
               </motion.div>
-            )
+            );
           })}
         </AnimatePresence>
       </div>
-      
+
       {images.length === 0 && (
         <div className="text-center py-12">
           <div className="flex flex-col items-center gap-2">
@@ -265,5 +269,5 @@ export function Filmstrip({
         </div>
       )}
     </div>
-  )
+  );
 }

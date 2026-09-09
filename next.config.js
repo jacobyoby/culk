@@ -1,14 +1,14 @@
-const withPWA = require('@ducanh2912/next-pwa').default({
-  dest: 'public',
+const withPWA = require("@ducanh2912/next-pwa").default({
+  dest: "public",
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
+  disable: process.env.NODE_ENV === "development",
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
-      handler: 'CacheFirst',
+      handler: "CacheFirst",
       options: {
-        cacheName: 'google-fonts-webfonts',
+        cacheName: "google-fonts-webfonts",
         expiration: {
           maxEntries: 4,
           maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
@@ -17,9 +17,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
     },
     {
       urlPattern: /^https:\/\/fonts\.(?:googleapis)\.com\/.*/i,
-      handler: 'StaleWhileRevalidate',
+      handler: "StaleWhileRevalidate",
       options: {
-        cacheName: 'google-fonts-stylesheets',
+        cacheName: "google-fonts-stylesheets",
         expiration: {
           maxEntries: 4,
           maxAgeSeconds: 7 * 24 * 60 * 60, // 1 week
@@ -28,9 +28,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
     },
     {
       urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
-      handler: 'StaleWhileRevalidate',
+      handler: "StaleWhileRevalidate",
       options: {
-        cacheName: 'static-image-assets',
+        cacheName: "static-image-assets",
         expiration: {
           maxEntries: 64,
           maxAgeSeconds: 24 * 60 * 60, // 1 day
@@ -39,9 +39,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
     },
     {
       urlPattern: /\.(?:wasm)$/i,
-      handler: 'CacheFirst',
+      handler: "CacheFirst",
       options: {
-        cacheName: 'wasm-assets',
+        cacheName: "wasm-assets",
         expiration: {
           maxEntries: 8,
           maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
@@ -49,15 +49,18 @@ const withPWA = require('@ducanh2912/next-pwa').default({
       },
     },
   ],
-})
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     serverActions: {
-      bodySizeLimit: '50mb',
+      bodySizeLimit: "50mb",
     },
   },
   webpack: (config, { isServer }) => {
@@ -67,50 +70,50 @@ const nextConfig = {
         fs: false,
         path: false,
         crypto: false,
-      }
+      };
     }
-    
+
     config.module.rules.push({
       test: /\.wasm$/,
-      type: 'asset/resource',
-    })
+      type: "asset/resource",
+    });
 
     // ONNX Runtime Web compatibility
     config.resolve.alias = {
       ...config.resolve.alias,
-      'onnxruntime-node': 'onnxruntime-web',
-    }
+      "onnxruntime-node": "onnxruntime-web",
+    };
 
     // Ignore Node.js modules in ONNX Runtime
-    config.externals = config.externals || []
+    config.externals = config.externals || [];
     if (!isServer) {
       config.externals.push({
-        'module': 'commonjs module',
-        'node:fs': 'commonjs node:fs',
-        'node:os': 'commonjs node:os',
-        'node:path': 'commonjs node:path',
-      })
+        module: "commonjs module",
+        "node:fs": "commonjs node:fs",
+        "node:os": "commonjs node:os",
+        "node:path": "commonjs node:path",
+      });
     }
-    
-    return config
+
+    return config;
   },
   headers: async () => {
     return [
       {
-        source: '/:path*',
+        source: "/:path*",
         headers: [
           {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp",
           },
           {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
           },
         ],
       },
-    ]
+    ];
   },
-}
+};
 
-module.exports = withPWA(nextConfig)
+module.exports = withPWA(nextConfig);

@@ -1,164 +1,164 @@
 export interface ImageMetadata {
-  make?: string
-  model?: string
-  lens?: string
-  focalLength?: number
-  aperture?: number
-  shutterSpeed?: string
-  iso?: number
-  dateTime?: Date
-  width?: number
-  height?: number
-  orientation?: number
-  gpsLatitude?: number
-  gpsLongitude?: number
+  make?: string;
+  model?: string;
+  lens?: string;
+  focalLength?: number;
+  aperture?: number;
+  shutterSpeed?: string;
+  iso?: number;
+  dateTime?: Date;
+  width?: number;
+  height?: number;
+  orientation?: number;
+  gpsLatitude?: number;
+  gpsLongitude?: number;
 }
 
 export interface ImageRec {
-  id: string
-  fileName: string
-  filePath: string
-  fileSize: number
-  fileType: string
-  fileHandle?: FileSystemFileHandle
-  
-  previewDataUrl?: string
-  thumbnailDataUrl?: string
-  
-  metadata: ImageMetadata
-  
-  phash?: string
-  focusScore?: number
-  blurScore?: number
-  exposureScore?: number
-  
-  faces?: FaceDetection[]
-  
+  id: string;
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  fileType: string;
+  fileHandle?: FileSystemFileHandle;
+
+  previewDataUrl?: string;
+  thumbnailDataUrl?: string;
+
+  metadata: ImageMetadata;
+
+  phash?: string;
+  focusScore?: number;
+  blurScore?: number;
+  exposureScore?: number;
+
+  faces?: FaceDetection[];
+
   autoCropRegion?: {
-    x: number
-    y: number
-    width: number
-    height: number
-    confidence: number
-    method: string
-  }
-  
-  rating: number
-  flag: 'pick' | 'reject' | null
-  label?: string
-  
-  groupId?: string
-  isAutoPick?: boolean
-  
-  createdAt: Date
-  modifiedAt: Date
-  importSessionId: string
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    confidence: number;
+    method: string;
+  };
+
+  rating: number;
+  flag: "pick" | "reject" | null;
+  label?: string;
+
+  groupId?: string;
+  isAutoPick?: boolean;
+
+  createdAt: Date;
+  modifiedAt: Date;
+  importSessionId: string;
 }
 
 export interface EyeState {
-  left: 'open' | 'closed' | 'unknown'
-  right: 'open' | 'closed' | 'unknown'
+  left: "open" | "closed" | "unknown";
+  right: "open" | "closed" | "unknown";
 }
 
 export interface FaceDetection {
-  id: string
-  bbox: { x: number; y: number; width: number; height: number }
-  confidence: number
+  id: string;
+  bbox: { x: number; y: number; width: number; height: number };
+  confidence: number;
   landmarks?: {
-    leftEye?: { x: number; y: number }
-    rightEye?: { x: number; y: number }
-    nose?: { x: number; y: number }
-    mouth?: { x: number; y: number }
-  }
-  eyeState?: EyeState
-  focusScore?: number
+    leftEye?: { x: number; y: number };
+    rightEye?: { x: number; y: number };
+    nose?: { x: number; y: number };
+    mouth?: { x: number; y: number };
+  };
+  eyeState?: EyeState;
+  focusScore?: number;
 }
 
 export interface GroupRec {
-  id: string
-  memberIds: string[]
-  autoPickId?: string
-  representative?: string
-  score?: number
-  createdAt: Date
-  modifiedAt: Date
+  id: string;
+  memberIds: string[];
+  autoPickId?: string;
+  representative?: string;
+  score?: number;
+  createdAt: Date;
+  modifiedAt: Date;
 }
 
 export interface ProjectMeta {
-  id: string
-  name: string
-  createdAt: Date
-  modifiedAt: Date
-  
+  id: string;
+  name: string;
+  createdAt: Date;
+  modifiedAt: Date;
+
   settings: {
-    similarityThreshold: number
-    blurThreshold: number
-    minFaceConfidence: number
+    similarityThreshold: number;
+    blurThreshold: number;
+    minFaceConfidence: number;
     autoPickWeights: {
-      sharpness: number
-      eyesOpen: number
-      faceSize: number
-      exposure: number
-    }
+      sharpness: number;
+      eyesOpen: number;
+      faceSize: number;
+      exposure: number;
+    };
     exportSettings: {
-      includeXMP: boolean
-      includeJSON: boolean
-      includeCSV: boolean
-      xmpTemplate?: string
-    }
-  }
-  
+      includeXMP: boolean;
+      includeJSON: boolean;
+      includeCSV: boolean;
+      xmpTemplate?: string;
+    };
+  };
+
   stats: {
-    totalImages: number
-    ratedImages: number
-    picks: number
-    rejects: number
-    groups: number
-  }
+    totalImages: number;
+    ratedImages: number;
+    picks: number;
+    rejects: number;
+    groups: number;
+  };
 }
 
 export interface ImportSession {
-  id: string
-  folderName: string
-  startedAt: Date
-  completedAt?: Date
-  totalFiles: number
-  processedFiles: number
-  failedFiles: number
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  errors: Array<{ file: string; error: string }>
+  id: string;
+  folderName: string;
+  startedAt: Date;
+  completedAt?: Date;
+  totalFiles: number;
+  processedFiles: number;
+  failedFiles: number;
+  status: "pending" | "processing" | "completed" | "failed";
+  errors: Array<{ file: string; error: string }>;
 }
 
-export type ViewMode = 'filmstrip' | 'loupe' | 'compare' | 'survey'
+export type ViewMode = "filmstrip" | "loupe" | "compare" | "survey";
 
 export interface ImageAdjustments {
-  brightness: number // -100 to 100
-  contrast: number   // -100 to 100  
-  saturation: number // -100 to 100
-  highlights: number // -100 to 100
-  shadows: number   // -100 to 100
-  vibrance: number  // -100 to 100
+  brightness: number; // -100 to 100
+  contrast: number; // -100 to 100
+  saturation: number; // -100 to 100
+  highlights: number; // -100 to 100
+  shadows: number; // -100 to 100
+  vibrance: number; // -100 to 100
 }
 
-export type ThumbnailSize = 'small' | 'medium' | 'large' | 'xlarge'
+export type ThumbnailSize = "small" | "medium" | "large" | "xlarge";
 
 export interface UIState {
-  viewMode: ViewMode
-  selectedImageIds: string[]
-  currentImageId?: string
-  zoom: number
-  panX: number
-  panY: number
-  showFaceBoxes: boolean
-  showMetadata: boolean
-  showHistogram: boolean
-  showCropTool: boolean
-  showAdjustments: boolean
-  thumbnailSize: ThumbnailSize
-  compareImages: string[]
-  surveyImages: string[]
-  filterMode?: 'all' | 'picks' | 'rejects' | 'unrated' | 'blurry' | 'eyes-closed'
-  sortMode: 'capture-time' | 'import-time' | 'rating' | 'name'
-  sortDirection: 'asc' | 'desc'
-  adjustments: ImageAdjustments
+  viewMode: ViewMode;
+  selectedImageIds: string[];
+  currentImageId?: string;
+  zoom: number;
+  panX: number;
+  panY: number;
+  showFaceBoxes: boolean;
+  showMetadata: boolean;
+  showHistogram: boolean;
+  showCropTool: boolean;
+  showAdjustments: boolean;
+  thumbnailSize: ThumbnailSize;
+  compareImages: string[];
+  surveyImages: string[];
+  filterMode?: "all" | "picks" | "rejects" | "unrated" | "blurry" | "eyes-closed";
+  sortMode: "capture-time" | "import-time" | "rating" | "name";
+  sortDirection: "asc" | "desc";
+  adjustments: ImageAdjustments;
 }

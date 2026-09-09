@@ -4,38 +4,20 @@
   "description": "Automated testing agent for AI Photo Culling PWA",
   "testSuites": {
     "unit": {
-      "commands": [
-        "pnpm test:unit",
-        "pnpm test:coverage"
-      ],
+      "commands": ["pnpm test:unit", "pnpm test:coverage"],
       "coverage": {
         "threshold": 80,
         "include": ["src/lib/**", "src/workers/**"]
       }
     },
     "integration": {
-      "commands": [
-        "pnpm test:integration"
-      ],
-      "targets": [
-        "import-flow",
-        "culling-ui",
-        "grouping-algorithm",
-        "export-xmp",
-        "pwa-offline"
-      ]
+      "commands": ["pnpm test:integration"],
+      "targets": ["import-flow", "culling-ui", "grouping-algorithm", "export-xmp", "pwa-offline"]
     },
     "e2e": {
-      "commands": [
-        "pnpm test:e2e"
-      ],
+      "commands": ["pnpm test:e2e"],
       "browsers": ["chromium", "firefox", "webkit"],
-      "scenarios": [
-        "import-2000-images",
-        "auto-group-duplicates",
-        "face-eye-detection",
-        "xmp-export-lightroom"
-      ]
+      "scenarios": ["import-2000-images", "auto-group-duplicates", "face-eye-detection", "xmp-export-lightroom"]
     },
     "docker": {
       "commands": [
@@ -48,9 +30,7 @@
       }
     },
     "performance": {
-      "commands": [
-        "pnpm test:perf"
-      ],
+      "commands": ["pnpm test:perf"],
       "benchmarks": {
         "import": {
           "maxDuration": 5000,
@@ -104,14 +84,8 @@
     ]
   },
   "hooks": {
-    "preTest": [
-      "pnpm install",
-      "cp env.example .env.test"
-    ],
-    "postTest": [
-      "rm -rf coverage/",
-      "docker compose down"
-    ]
+    "preTest": ["pnpm install", "cp env.example .env.test"],
+    "postTest": ["rm -rf coverage/", "docker compose down"]
   },
   "ci": {
     "provider": "github-actions",

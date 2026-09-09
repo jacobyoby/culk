@@ -1,45 +1,43 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Sliders, RotateCcw, ChevronDown, ChevronUp, X, Wand2, Sparkles } from 'lucide-react'
-import { ImageAdjustments, ImageRec } from '@/lib/types'
-import { getDefaultAdjustments, resetAdjustments } from '@/lib/utils/adjustments'
-import { autoEnhanceFromCanvas, applyPreset, getAutoEnhancePresets, isEnhancementWorthwhile } from '@/lib/utils/auto-enhance'
-import { Button, LoadingButton, IconButton } from '@/components/ui/button'
-import { useProcessingState, formatEnhancementMessage, formatPresetMessage } from '@/lib/utils/processing-state'
-import { StatusMessageComponent } from '@/components/ui/status-message'
-import { withImageProcessingErrorHandling, withCanvasErrorHandling } from '@/lib/utils/error-handling'
-import { createCanvasFromImage } from '@/lib/utils/canvas'
+import { ChevronDown, ChevronUp, RotateCcw, Sliders, Sparkles, Wand2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button, IconButton, LoadingButton } from "@/components/ui/button";
+import { StatusMessageComponent } from "@/components/ui/status-message";
+import type { ImageAdjustments, ImageRec } from "@/lib/types";
+import { getDefaultAdjustments, resetAdjustments } from "@/lib/utils/adjustments";
+import {
+  applyPreset,
+  autoEnhanceFromCanvas,
+  getAutoEnhancePresets,
+  isEnhancementWorthwhile,
+} from "@/lib/utils/auto-enhance";
+import { createCanvasFromImage } from "@/lib/utils/canvas";
+import { withCanvasErrorHandling, withImageProcessingErrorHandling } from "@/lib/utils/error-handling";
+import { formatEnhancementMessage, formatPresetMessage, useProcessingState } from "@/lib/utils/processing-state";
 
 interface AdjustmentPanelProps {
-  adjustments: ImageAdjustments
-  onAdjustmentsChange: (adjustments: ImageAdjustments) => void
-  image?: ImageRec
-  isOpen: boolean
-  activePreset?: string | null
-  onPresetChange?: (preset: string | null) => void
-  onToggle: () => void
-  onClose?: () => void
-  className?: string
+  adjustments: ImageAdjustments;
+  onAdjustmentsChange: (adjustments: ImageAdjustments) => void;
+  image?: ImageRec;
+  isOpen: boolean;
+  activePreset?: string | null;
+  onPresetChange?: (preset: string | null) => void;
+  onToggle: () => void;
+  onClose?: () => void;
+  className?: string;
 }
 
 interface SliderControlProps {
-  label: string
-  value: number
-  onChange: (value: number) => void
-  min?: number
-  max?: number
-  step?: number
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
 }
 
-function SliderControl({ 
-  label, 
-  value, 
-  onChange, 
-  min = -100, 
-  max = 100, 
-  step = 1 
-}: SliderControlProps) {
+function SliderControl({ label, value, onChange, min = -100, max = 100, step = 1 }: SliderControlProps) {
   return (
     <div className="flex items-center gap-3">
       <label className="w-24 text-sm text-gray-300 text-right">{label}</label>
@@ -56,10 +54,13 @@ function SliderControl({
                      [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 
                      [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-0"
         />
-        <span className="w-10 text-xs text-gray-400 text-center">{value > 0 ? '+' : ''}{value}</span>
+        <span className="w-10 text-xs text-gray-400 text-center">
+          {value > 0 ? "+" : ""}
+          {value}
+        </span>
       </div>
     </div>
-  )
+  );
 }
 
 // Preset descriptions for tooltips
@@ -68,132 +69,143 @@ const PRESET_DESCRIPTIONS = {
   landscape: "Increases contrast and saturation for nature and outdoor scenes",
   lowLight: "Brightens dark images with aggressive shadow recovery",
   highKey: "Recovers highlights and balances bright, airy images",
-  dramatic: "High contrast and vibrance for artistic, moody effects"
-} as const
+  dramatic: "High contrast and vibrance for artistic, moody effects",
+} as const;
 
-export function AdjustmentPanel({ 
-  adjustments, 
-  onAdjustmentsChange, 
+export function AdjustmentPanel({
+  adjustments,
+  onAdjustmentsChange,
   image,
   isOpen,
   activePreset: propActivePreset,
   onPresetChange,
   onToggle,
-  onClose, 
-  className = '' 
+  onClose,
+  className = "",
 }: AdjustmentPanelProps) {
-  const [expandedSection, setExpandedSection] = useState<'basic' | 'advanced' | null>('basic')
+  const [expandedSection, setExpandedSection] = useState<"basic" | "advanced" | null>("basic");
   const processingState = useProcessingState({
     successDuration: 3000,
-    errorDuration: 5000
-  })
-  
+    errorDuration: 5000,
+  });
+
   // Destructure processing state methods to avoid dependency issues
-  const { clearMessages, startProcessing, setSuccess, setError, isProcessing, result, error } = processingState
-  
+  const { clearMessages, startProcessing, setSuccess, setError, isProcessing, result, error } = processingState;
+
   // Use prop-based active preset or fall back to local state
-  const activePreset = propActivePreset !== undefined ? propActivePreset : null
+  const activePreset = propActivePreset !== undefined ? propActivePreset : null;
 
   // Define handleAutoEnhance callback first
   const handleAutoEnhance = useCallback(async () => {
     if (!image?.previewDataUrl) {
-      setError('No image preview available')
-      return
+      setError("No image preview available");
+      return;
     }
 
-    onPresetChange?.(null) // Clear preset selection when auto-enhancing
-    startProcessing() // Start processing state
-    
+    onPresetChange?.(null); // Clear preset selection when auto-enhancing
+    startProcessing(); // Start processing state
+
     const result = await withImageProcessingErrorHandling(async () => {
       const { canvas, cleanup } = await createCanvasFromImage(image.previewDataUrl!, {
-        willReadFrequently: true
-      })
-      
+        willReadFrequently: true,
+      });
+
       try {
-        const enhanceResult = await autoEnhanceFromCanvas(canvas, image.metadata, true)
-        
+        const enhanceResult = await autoEnhanceFromCanvas(canvas, image.metadata, true);
+
         if (isEnhancementWorthwhile(enhanceResult)) {
-          onAdjustmentsChange(enhanceResult.adjustments)
+          onAdjustmentsChange(enhanceResult.adjustments);
           return {
             applied: true,
             confidence: enhanceResult.confidence,
-            adjustments: enhanceResult.adjustments
-          }
+            adjustments: enhanceResult.adjustments,
+          };
         } else {
           return {
-            applied: false
-          }
+            applied: false,
+          };
         }
       } finally {
-        cleanup()
+        cleanup();
       }
-    }, 'Auto enhance')
-    
+    }, "Auto enhance");
+
     if (result) {
-      const message = formatEnhancementMessage(result)
-      setSuccess(`${message.title}: ${message.message}`)
+      const message = formatEnhancementMessage(result);
+      setSuccess(`${message.title}: ${message.message}`);
     } else {
-      setError('Auto enhance failed')
+      setError("Auto enhance failed");
     }
-  }, [image?.previewDataUrl, image?.metadata, onAdjustmentsChange, onPresetChange, startProcessing, setSuccess, setError])
+  }, [
+    image?.previewDataUrl,
+    image?.metadata,
+    onAdjustmentsChange,
+    onPresetChange,
+    startProcessing,
+    setSuccess,
+    setError,
+  ]);
 
   // Store handleAutoEnhance ref to avoid dependency issues
-  const handleAutoEnhanceRef = useRef(handleAutoEnhance)
-  handleAutoEnhanceRef.current = handleAutoEnhance
+  const handleAutoEnhanceRef = useRef(handleAutoEnhance);
+  handleAutoEnhanceRef.current = handleAutoEnhance;
 
   // Listen for auto enhance events from keyboard shortcuts
   useEffect(() => {
     const handleAutoEnhanceEvent = (event: CustomEvent) => {
       if (image?.id && event.detail.imageId === image.id) {
-        handleAutoEnhanceRef.current()
+        handleAutoEnhanceRef.current();
       }
-    }
+    };
 
-    document.addEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
+    document.addEventListener("autoEnhance", handleAutoEnhanceEvent as EventListener);
     return () => {
-      document.removeEventListener('autoEnhance', handleAutoEnhanceEvent as EventListener)
-    }
-  }, [image?.id])
+      document.removeEventListener("autoEnhance", handleAutoEnhanceEvent as EventListener);
+    };
+  }, [image?.id]);
 
   // Clear status messages when image changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: image id is the change trigger, not a value used in the effect body
   useEffect(() => {
-    clearMessages()
-  }, [image?.id, clearMessages])
+    clearMessages();
+  }, [image?.id, clearMessages]);
 
   const handleReset = () => {
-    onAdjustmentsChange(resetAdjustments())
-    clearMessages()
-    onPresetChange?.(null)
-  }
+    onAdjustmentsChange(resetAdjustments());
+    clearMessages();
+    onPresetChange?.(null);
+  };
 
   const handlePresetApply = (presetName: string) => {
-    const presetAdjustments = applyPreset(presetName)
-    onAdjustmentsChange(presetAdjustments)
-    onPresetChange?.(presetName)
-    
-    const message = formatPresetMessage(presetName)
-    setSuccess(`${message.title}: ${message.message}`)
-  }
+    const presetAdjustments = applyPreset(presetName);
+    onAdjustmentsChange(presetAdjustments);
+    onPresetChange?.(presetName);
+
+    const message = formatPresetMessage(presetName);
+    setSuccess(`${message.title}: ${message.message}`);
+  };
 
   const updateAdjustment = (key: keyof ImageAdjustments, value: number) => {
     onAdjustmentsChange({
       ...adjustments,
-      [key]: value
-    })
+      [key]: value,
+    });
     // Clear preset selection when manual adjustments are made
-    onPresetChange?.(null)
-  }
+    onPresetChange?.(null);
+  };
 
-  const hasAdjustments = Object.values(adjustments).some(val => val !== 0)
+  const hasAdjustments = Object.values(adjustments).some((val) => val !== 0);
 
   if (!isOpen) {
-    return null
+    return null;
   }
 
   return (
-    <div className={`absolute top-16 right-4 w-80 max-w-[calc(100vw-2rem)] bg-black/90 backdrop-blur-sm rounded-lg 
+    <div
+      className={`absolute top-16 right-4 w-80 max-w-[calc(100vw-2rem)] bg-black/90 backdrop-blur-sm rounded-lg 
                      border border-gray-700 shadow-xl z-20 ${className}
-                     sm:w-80 xs:w-72 xs:right-2 xs:top-12`}>
+                     sm:w-80 xs:w-72 xs:right-2 xs:top-12`}
+    >
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -204,14 +216,14 @@ export function AdjustmentPanel({
           <IconButton
             icon={X}
             onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              console.log('Close button clicked')
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("Close button clicked");
               // Use onClose if available, otherwise fall back to onToggle
               if (onClose) {
-                onClose()
+                onClose();
               } else {
-                onToggle()
+                onToggle();
               }
             }}
             variant="ghost"
@@ -232,8 +244,8 @@ export function AdjustmentPanel({
           </div>
           <LoadingButton
             onClick={() => {
-              console.log('Auto enhance button clicked')
-              handleAutoEnhance()
+              console.log("Auto enhance button clicked");
+              handleAutoEnhance();
             }}
             loading={isProcessing}
             loadingText="Analyzing..."
@@ -267,9 +279,9 @@ export function AdjustmentPanel({
           <div className="mb-4">
             <StatusMessageComponent
               message={{
-                type: error ? 'error' : 'success',
-                message: result || error || '',
-                details: result ? 'Adjustments saved to this image' : undefined
+                type: error ? "error" : "success",
+                message: result || error || "",
+                details: result ? "Adjustments saved to this image" : undefined,
               }}
             />
           </div>
@@ -282,23 +294,21 @@ export function AdjustmentPanel({
             <span className="text-sm font-medium text-white">Style Presets</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {Object.keys(getAutoEnhancePresets()).map(preset => (
+            {Object.keys(getAutoEnhancePresets()).map((preset) => (
               <Button
                 key={preset}
                 onClick={() => handlePresetApply(preset)}
-                variant={activePreset === preset ? 'default' : 'outline'}
+                variant={activePreset === preset ? "default" : "outline"}
                 className={`min-h-[44px] font-medium capitalize transform hover:scale-[1.02] active:scale-[0.98] focus:ring-offset-black ${
-                  activePreset === preset 
-                    ? 'bg-purple-600 hover:bg-purple-700 border-purple-500 shadow-lg shadow-purple-500/25' 
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700 border-gray-600 hover:border-gray-500'
+                  activePreset === preset
+                    ? "bg-purple-600 hover:bg-purple-700 border-purple-500 shadow-lg shadow-purple-500/25"
+                    : "text-gray-300 hover:text-white hover:bg-gray-700 border-gray-600 hover:border-gray-500"
                 }`}
                 title={PRESET_DESCRIPTIONS[preset as keyof typeof PRESET_DESCRIPTIONS] || `Apply ${preset} preset`}
               >
                 <div className="flex items-center justify-center gap-2">
-                  {activePreset === preset && (
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                  )}
-                  <span>{preset.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
+                  {activePreset === preset && <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>}
+                  <span>{preset.replace(/([A-Z])/g, " $1").toLowerCase()}</span>
                 </div>
               </Button>
             ))}
@@ -308,34 +318,30 @@ export function AdjustmentPanel({
         {/* Basic Adjustments */}
         <div className="mb-4">
           <button
-            onClick={() => setExpandedSection(expandedSection === 'basic' ? null : 'basic')}
+            onClick={() => setExpandedSection(expandedSection === "basic" ? null : "basic")}
             className="flex items-center justify-between w-full text-left text-sm text-gray-300 
                        hover:text-white transition-colors mb-2"
           >
             <span>Basic</span>
-            {expandedSection === 'basic' ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
+            {expandedSection === "basic" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
-          
-          {expandedSection === 'basic' && (
+
+          {expandedSection === "basic" && (
             <div className="space-y-3 pl-2">
               <SliderControl
                 label="Brightness"
                 value={adjustments.brightness}
-                onChange={(value) => updateAdjustment('brightness', value)}
+                onChange={(value) => updateAdjustment("brightness", value)}
               />
               <SliderControl
                 label="Contrast"
                 value={adjustments.contrast}
-                onChange={(value) => updateAdjustment('contrast', value)}
+                onChange={(value) => updateAdjustment("contrast", value)}
               />
               <SliderControl
                 label="Saturation"
                 value={adjustments.saturation}
-                onChange={(value) => updateAdjustment('saturation', value)}
+                onChange={(value) => updateAdjustment("saturation", value)}
               />
             </div>
           )}
@@ -344,39 +350,35 @@ export function AdjustmentPanel({
         {/* Advanced Adjustments */}
         <div>
           <button
-            onClick={() => setExpandedSection(expandedSection === 'advanced' ? null : 'advanced')}
+            onClick={() => setExpandedSection(expandedSection === "advanced" ? null : "advanced")}
             className="flex items-center justify-between w-full text-left text-sm text-gray-300 
                        hover:text-white transition-colors mb-2"
           >
             <span>Advanced</span>
-            {expandedSection === 'advanced' ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
+            {expandedSection === "advanced" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
-          
-          {expandedSection === 'advanced' && (
+
+          {expandedSection === "advanced" && (
             <div className="space-y-3 pl-2">
               <SliderControl
                 label="Highlights"
                 value={adjustments.highlights}
-                onChange={(value) => updateAdjustment('highlights', value)}
+                onChange={(value) => updateAdjustment("highlights", value)}
               />
               <SliderControl
                 label="Shadows"
                 value={adjustments.shadows}
-                onChange={(value) => updateAdjustment('shadows', value)}
+                onChange={(value) => updateAdjustment("shadows", value)}
               />
               <SliderControl
                 label="Vibrance"
                 value={adjustments.vibrance}
-                onChange={(value) => updateAdjustment('vibrance', value)}
+                onChange={(value) => updateAdjustment("vibrance", value)}
               />
             </div>
           )}
         </div>
-        
+
         {hasAdjustments && (
           <div className="mt-4 pt-3 border-t border-gray-700">
             <p className="text-xs text-gray-500">
@@ -386,5 +388,5 @@ export function AdjustmentPanel({
         )}
       </div>
     </div>
-  )
+  );
 }

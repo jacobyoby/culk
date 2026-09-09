@@ -1,65 +1,61 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
-import { X, Minimize2 } from 'lucide-react'
+import { Minimize2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface WindowControlsProps {
-  className?: string
-  showMinimize?: boolean
+  className?: string;
+  showMinimize?: boolean;
 }
 
-export function WindowControls({ className = '', showMinimize = true }: WindowControlsProps) {
-  const router = useRouter()
+export function WindowControls({ className = "", showMinimize = true }: WindowControlsProps) {
+  const router = useRouter();
 
   const handleMinimize = () => {
-    if (typeof window !== 'undefined' && 'electronAPI' in window) {
+    if (typeof window !== "undefined" && "electronAPI" in window) {
       // Electron app
-      (window as any).electronAPI.minimize()
-    } else if (typeof window !== 'undefined') {
+      (window as any).electronAPI.minimize();
+    } else if (typeof window !== "undefined") {
       // PWA/Browser - try to minimize or go back
       if (window.history.length > 1) {
-        window.history.back()
+        window.history.back();
       } else {
-        router.push('/')
+        router.push("/");
       }
     }
-  }
+  };
 
   const handleClose = () => {
-    if (typeof window !== 'undefined' && 'electronAPI' in window) {
+    if (typeof window !== "undefined" && "electronAPI" in window) {
       // Electron app
-      (window as any).electronAPI.close()
-    } else if (typeof window !== 'undefined') {
+      (window as any).electronAPI.close();
+    } else if (typeof window !== "undefined") {
       // PWA/Browser - close window or navigate away
       try {
         // Try to close the window (works for windows opened by JavaScript)
-        window.close()
+        window.close();
       } catch (e) {
         // If window.close() fails, try alternative methods
-        if ('serviceWorker' in navigator) {
+        if ("serviceWorker" in navigator) {
           // For PWAs, try to minimize to system tray or background
           try {
-            (navigator as any).app?.exitApp?.()
+            (navigator as any).app?.exitApp?.();
           } catch (err) {
             // Last resort - navigate to home page
-            router.push('/')
+            router.push("/");
           }
         } else {
           // Regular browser tab - navigate to home
-          router.push('/')
+          router.push("/");
         }
       }
     }
-  }
+  };
 
   return (
     <div className={`flex items-center gap-1 ${className}`}>
       {showMinimize && (
-        <button
-          onClick={handleMinimize}
-          className="p-1.5 hover:bg-muted rounded transition-colors"
-          title="Minimize"
-        >
+        <button onClick={handleMinimize} className="p-1.5 hover:bg-muted rounded transition-colors" title="Minimize">
           <Minimize2 className="w-4 h-4" />
         </button>
       )}
@@ -71,5 +67,5 @@ export function WindowControls({ className = '', showMinimize = true }: WindowCo
         <X className="w-4 h-4" />
       </button>
     </div>
-  )
+  );
 }

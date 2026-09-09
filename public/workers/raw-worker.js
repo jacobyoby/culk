@@ -5,15 +5,15 @@ let libRawInstance = null;
 // Import LibRaw WASM when needed
 async function initializeLibRaw() {
   if (isLibRawInitialized) return;
-  
+
   try {
     // Dynamic import of LibRaw WASM
-    const LibRaw = await import('libraw-wasm');
+    const LibRaw = await import("libraw-wasm");
     libRawInstance = new LibRaw.default();
     isLibRawInitialized = true;
   } catch (error) {
-    console.error('Failed to initialize LibRaw:', error);
-    throw new Error('LibRaw initialization failed');
+    console.error("Failed to initialize LibRaw:", error);
+    throw new Error("LibRaw initialization failed");
   }
 }
 
@@ -23,27 +23,21 @@ async function processRawFile(fileBuffer, options = {}) {
     await initializeLibRaw();
   }
 
-  const {
-    brightness = 0,
-    whiteBalance = 'auto',
-    colorSpace = 'sRGB',
-    quality = 90,
-    size
-  } = options;
+  const { brightness = 0, whiteBalance = "auto", colorSpace = "sRGB", quality = 90, size } = options;
 
   try {
     const uint8Array = new Uint8Array(fileBuffer);
-    
+
     await libRawInstance.open(uint8Array, {
       brightness,
       wb: mapWhiteBalance(whiteBalance),
       colorSpace: mapColorSpace(colorSpace),
-      quality
+      quality,
     });
 
     const metadata = await libRawInstance.metadata();
     const imageData = await libRawInstance.imageData();
-    
+
     let processedData = imageData;
     let width = metadata.width;
     let height = metadata.height;
@@ -60,13 +54,13 @@ async function processRawFile(fileBuffer, options = {}) {
       metadata: convertMetadata(metadata),
       width,
       height,
-      format: 'jpeg'
+      format: "jpeg",
     };
   } finally {
     try {
       await libRawInstance.close();
     } catch (closeError) {
-      console.warn('Error closing RAW processor:', closeError);
+      console.warn("Error closing RAW processor:", closeError);
     }
   }
 }
@@ -74,60 +68,70 @@ async function processRawFile(fileBuffer, options = {}) {
 // Helper functions
 function mapWhiteBalance(wb) {
   switch (wb) {
-    case 'auto': return 0;
-    case 'camera': return 1;
-    case 'daylight': return 2;
-    default: return 0;
+    case "auto":
+      return 0;
+    case "camera":
+      return 1;
+    case "daylight":
+      return 2;
+    default:
+      return 0;
   }
 }
 
 function mapColorSpace(colorSpace) {
   switch (colorSpace) {
-    case 'sRGB': return 1;
-    case 'AdobeRGB': return 2;
-    case 'ProPhotoRGB': return 3;
-    default: return 1;
+    case "sRGB":
+      return 1;
+    case "AdobeRGB":
+      return 2;
+    case "ProPhotoRGB":
+      return 3;
+    default:
+      return 1;
   }
 }
 
 async function resizeImage(imageData, originalWidth, originalHeight, targetWidth, targetHeight) {
   return new Promise((resolve, reject) => {
     const canvas = new OffscreenCanvas(targetWidth, targetHeight);
-    const ctx = canvas.getContext('2d');
-    
+    const ctx = canvas.getContext("2d");
+
     if (!ctx) {
-      reject(new Error('Canvas context not available'));
+      reject(new Error("Canvas context not available"));
       return;
     }
 
     const imgBitmap = createImageBitmap(new Blob([imageData]));
-    imgBitmap.then(bitmap => {
-      const aspectRatio = originalWidth / originalHeight;
-      let newWidth = targetWidth;
-      let newHeight = targetHeight;
+    imgBitmap
+      .then((bitmap) => {
+        const aspectRatio = originalWidth / originalHeight;
+        let newWidth = targetWidth;
+        let newHeight = targetHeight;
 
-      if (targetWidth / targetHeight > aspectRatio) {
-        newWidth = targetHeight * aspectRatio;
-      } else {
-        newHeight = targetWidth / aspectRatio;
-      }
+        if (targetWidth / targetHeight > aspectRatio) {
+          newWidth = targetHeight * aspectRatio;
+        } else {
+          newHeight = targetWidth / aspectRatio;
+        }
 
-      canvas.width = newWidth;
-      canvas.height = newHeight;
-      ctx.drawImage(bitmap, 0, 0, newWidth, newHeight);
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        ctx.drawImage(bitmap, 0, 0, newWidth, newHeight);
 
-      canvas.convertToBlob({ type: 'image/jpeg' }).then(blob => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          resolve({
-            data: new Uint8Array(reader.result),
-            width: newWidth,
-            height: newHeight
-          });
-        };
-        reader.readAsArrayBuffer(blob);
-      });
-    }).catch(reject);
+        canvas.convertToBlob({ type: "image/jpeg" }).then((blob) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve({
+              data: new Uint8Array(reader.result),
+              width: newWidth,
+              height: newHeight,
+            });
+          };
+          reader.readAsArrayBuffer(blob);
+        });
+      })
+      .catch(reject);
   });
 }
 
@@ -149,36 +153,36 @@ function convertMetadata(rawMetadata) {
     colorSpace: rawMetadata.color_space,
     exposureCompensation: rawMetadata.exposure_compensation,
     meteringMode: rawMetadata.metering_mode,
-    exposureMode: rawMetadata.exposure_mode
+    exposureMode: rawMetadata.exposure_mode,
   };
 }
 
 // Worker message handler
-self.onmessage = async function(event) {
+self.onmessage = async (event) => {
   const { id, type, fileBuffer, options, maxWidth, maxHeight, width, height } = event.data;
-  
+
   try {
     let result;
 
     switch (type) {
-      case 'process':
+      case "process":
         result = await processRawFile(fileBuffer, options);
         break;
-        
-      case 'preview':
+
+      case "preview":
         result = await processRawFile(fileBuffer, {
           size: { width: maxWidth || 1920, height: maxHeight || 1080 },
-          quality: 85
+          quality: 85,
         });
         break;
-        
-      case 'thumbnail':
+
+      case "thumbnail":
         result = await processRawFile(fileBuffer, {
           size: { width: width || 200, height: height || 200 },
-          quality: 75
+          quality: 75,
         });
         break;
-        
+
       default:
         throw new Error(`Unknown processing type: ${type}`);
     }
@@ -186,14 +190,13 @@ self.onmessage = async function(event) {
     self.postMessage({
       id,
       success: true,
-      result
+      result,
     });
-    
   } catch (error) {
     self.postMessage({
       id,
       success: false,
-      error: error.message || 'Unknown error'
+      error: error.message || "Unknown error",
     });
   }
 };

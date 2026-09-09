@@ -100,13 +100,13 @@
         const imageInput = document.getElementById('imageInput');
         let currentImageData = null;
 
-        imageInput.addEventListener('change', function(e) {
+        imageInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(event) {
+                reader.onload = (event) => {
                     const img = new Image();
-                    img.onload = function() {
+                    img.onload = () => {
                         // Resize canvas to fit image while maintaining aspect ratio
                         const maxWidth = 400;
                         const maxHeight = 300;
@@ -364,7 +364,7 @@
         }
 
         // Initialize with test image
-        window.onload = function() {
+        window.onload = () => {
             createTestImage();
         };
     </script>
