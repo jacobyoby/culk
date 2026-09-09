@@ -22,7 +22,7 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "next": "14.2.16",
+    "next": "15.5.24",
     "react": "^18",
     "react-dom": "^18",
     "dexie": "^4.0.10",
@@ -38,9 +38,9 @@
     "react-hotkeys-hook": "^4.6.1",
     "framer-motion": "^11.15.0",
     "react-intersection-observer": "^9.14.0",
-    "nanoid": "^5.0.9",
+    "nanoid": "^5.1.16",
     "date-fns": "^4.1.0",
-    "exifreader": "^4.26.3",
+    "exifreader": "^4.40.1",
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-dropdown-menu": "^2.1.4",
     "@radix-ui/react-slider": "^1.2.2",
@@ -62,7 +62,7 @@
     "postcss": "^8",
     "autoprefixer": "^10.4.20",
     "@biomejs/biome": "2.5.12",
-    "vitest": "^2.1.8",
+    "vitest": "^4.1.11",
     "@vitest/coverage-v8": "^2.1.8",
     "jsdom": "^25.0.1",
     "@ducanh2912/next-pwa": "^10.2.9"
