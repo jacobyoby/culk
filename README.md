@@ -198,6 +198,8 @@ docker compose -f docker-compose.test.yml up --build
 
 ## Security & Privacy
 
+See [SECURITY.md](SECURITY.md) for the local-only privacy stub.
+
 - **100% Local Processing** - No images or data sent to any server
 - **Secure Context** - Requires HTTPS in production (localhost is secure for development)
 - **File System Access** - Controlled folder access with user permissions
@@ -256,7 +258,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 [Donate / Support Jacobrakai Foundation — JACOBRAKAI FOUNDATION 501(c)(3)](https://donate.stripe.com/eVq4gy97DanS9h60phfrW00)
 
-JACOBRAKAI FOUNDATION (Jacobrakai Foundation) is an IRS 501(c)(3) public charity, EIN 33-3382083, effective February 11, 2025.
+JACOBRAKAI FOUNDATION (Jacobrakai Foundation) is an IRC 501(c)(3) public charity under 170(b)(1)(A)(vi), EIN 33-3382083, effective February 11, 2025. Contributions are deductible to the extent allowed by law. IRS Letter 947 dated September 3, 2026.
 
 ## Acknowledgments
 
