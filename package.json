@@ -23,8 +23,8 @@
   },
   "dependencies": {
     "next": "15.5.24",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^19",
+    "react-dom": "^19",
     "dexie": "^4.0.10",
     "dexie-react-hooks": "^1.1.7",
     "onnxruntime-web": "^1.18.0",
@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^22",
-    "@types/react": "^18",
+    "@types/react": "^19",
     "@types/react-dom": "^18",
     "@testing-library/react": "^16.1.0",
     "@testing-library/jest-dom": "^6.1.5",
